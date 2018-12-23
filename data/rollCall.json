@@ -1,0 +1,26 @@
+{
+        "type": "GameEngine.StartInputHandler",
+        "timeout": 90000,
+        "recognizers": {
+            "button_down_recognizer": {
+                "type": "match",
+                "fuzzy": false,
+                "anchor": "end",
+                "pattern": [{
+                  "action": "down"
+                }]
+            }
+        },
+        "events": {
+            "button_down_event": {
+                "meets": ["button_down_recognizer"],
+                "reports": "matches",
+                "shouldEndInputHandler": false
+             },
+             "timeout": {
+                "meets": ["timed out"],
+                "reports": "history",
+                "shouldEndInputHandler": true
+             }
+        }
+}
