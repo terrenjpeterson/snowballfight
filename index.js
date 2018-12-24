@@ -1,16 +1,16 @@
-// This is the main processing for the Smash Bug Alexa Skill
+// This is the main processing for the Alexa Snowball FIght Skill
 
 'use strict';
 const Alexa = require("alexa-sdk");
 const appId = 'amzn1.ask.skill.0f8fdbe7-01a2-41d0-877a-c393e543dc58';
 
 // these are the parameters used to perform a roll call with the button
-const buttonStartParams = require("data/rollCall.json");
+let buttonStartParams = require("data/rollCall.json");
 
 // These are the backgrounds used to display on the screen including the initial launch
 const startupImage = 'https://s3.amazonaws.com/bugsmashgame/gameIcons/1024x600background.png';
-const skillName = 'Bug Smash';
-const startupTitle = 'Get the Bugs';
+const skillName = 'Snowball Fight';
+const startupTitle = 'Watch out for the cold!';
 
 // these utility methods for creating Image and TextField objects for the echo show
 const makePlainText = Alexa.utils.TextUtils.makePlainText;
@@ -61,12 +61,12 @@ const transitions = [
 
 // this is the card that requests feedback after the game is played
 const cardTitle = "Game Complete";
-const cardFeedback = "Thank you for playing the Bug Smashers Skill\n" +
+const cardFeedback = "Thank you for playing the Snowball Fight Skill\n" +
     "If you enjoyed playing this, please take a minute to provide a review in the Alexa Skill Store.\n" +
     "1. Open the Alexa app on your phone\r" +
     "2. Go to the Skills section\r" +
     "3. Tap 'Your Skills' in the top right corner\r" +
-    "4. Find the 'Bug Smashers' skill\r" +
+    "4. Find the 'Snowball Fight' skill\r" +
     "5. Scroll down and tap 'Write a Review'\r" +
     "6. Provide feedback including a star rating";
 
@@ -83,7 +83,7 @@ exports.handler = function(event, context, callback) {
     console.log(JSON.stringify(event));
 
     // this is for the table that persists session data
-    alexa.dynamoDBTableName = 'bugSquashers';
+    alexa.dynamoDBTableName = 'snowballFight';
 
     // register handlers
     alexa.registerHandlers(handlers);
@@ -107,23 +107,23 @@ const handlers = {
 	// vary the intro based on if the game has been played by the user before
 	if (this.attributes['highScore'] > 1) {
 	    console.log("Returning User. Last score was: " + this.attributes['highScore']);
-	    speechOutput = "Welcome back to the bug smashing game. " +
+	    speechOutput = "Welcome back to the snowball fight. " +
 		"Your previous high score is " + this.attributes['highScore'] + ". " +
 		"<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_intro_01.mp3'/>" +
 		"Do you have Echo buttons to play the game with?";
 	} else {
 	    console.log("First Time user");
 	    this.attributes['highScore'] = 0;
-	    speechOutput = "Welcome to the bug smashing game." +
+	    speechOutput = "Welcome to the snowball fight game." +
 		"<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_intro_01.mp3'/>" +
-		"Get ready to start smashing bugs and saving animals. " +
+		"Get ready to start throwing snowballs, and ducking into a snow fort. " +
 		"Do you have Echo buttons?";
 	}
 
-        const reprompt = "If you have Echo buttons, please say yes, or press one to begin the registration. " +
-	    "If you don't, just say No and we will play this game with your voice.";
+        const reprompt = "If you have Echo buttons, please say yes, or press one to begin the registration. ";
 
-        // initiate settings for buttons if they are attached
+        // initiate settings for buttons if they are attached - and override time to 60 seconds
+	buttonStartParams.timeout = 60000;
         this.response._addDirective(buttonStartParams);
         
         // initialize game parameters
@@ -142,18 +142,6 @@ const handlers = {
             this.response.speak(speechOutput).listen(reprompt);
 	}
         this.emit(':responseReady');
-    },
-    // this is what gets invoked when the user says smash
-    'Smash': function() {
-	console.log("Smash utterance made.");
-
-	this.emit('FirstButtonPushed');
-    },
-    // this is what gets invoked when the user says save
-    'Save': function() {
-        console.log("Save utterance made.");
-
-	this.emit('SecondButtonPushed');
     },
     // this is the logic that relates to a response from the user indicating that they have buttons
     'AMAZON.YesIntent': function() {
@@ -188,27 +176,33 @@ const handlers = {
 	    console.log("Inadvertent utterance - game in-progress");
             delete this.handler.response.response.shouldEndSession;
             this.emit(':responseReady');	
+	} else if (this.attributes['firstGadgetId']) {
+	    // begin the round of a single player game
+	    console.log("Begin a solo match.");
+	    this.attributes['gameMode'] = "SOLO";
+
+	    // create the initial audio to stage the game
+	    let speechOutput = "Okay, let's begin a solo match. " + '<break time="1s"/>' +
+		"You walk outside, and see one of your friends working on their snow fort. " +
+		"Looks like an easy target as they haven't seen you yet!";	
+	    let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
+		"Press the button if you want to throw a snowball at them.";
+
+	    // set the parameter indicating that a snowball should be thrown
+	    this.attributes['throwNeeded'] = true;
+
+            // extend the lease on the buttons for 30 seconds - this is now game mode
+            buttonStartParams.timeout = 30000;
+            this.response._addDirective(buttonStartParams);
+
+	    this.response.speak(speechOutput).listen(repeatOutput);
+	    this.emit(':responseReady');
 	} else {
 	    // intro to the game
-            let speechOutput = "Okay, let's get started with the game." + '<break time="1s"/>' +
-	    	"You're headed into a jungle in search of lost animals. Watch out for those pesky insects " +
-	    	"as they will try and bite you. " + '<break time="1s"/>' +
-	    	"You hear a sound in the nearby bush. " + '<break time="1s"/>';
-	    let repeat = "Here was the sound again. ";
+	    console.log("User indicated that they didn't have buttons.");
+            let speechOutput = "Sorry, you need Echo Buttons to play this game.";
 
-            // select the first bug sound.
-            const sound = "<audio src='" + bugs[0].sound + "'/>" + '<break time="2s"/>' +
-            	"Remember, if you hear an insect, say 'Smash' to get it. " +
-            	"Say 'Save' if you hear an animal sound and it will be rescued. ";
-
-            this.attributes['latestSound'] = "<audio src='" + bugs[0].sound + "'/>";
-            this.attributes['soundType'] = "bug";
-            this.attributes['name'] = bugs[0].name;        
-        
-            speechOutput = speechOutput + sound;
-            repeat = repeat + sound;
-
-            this.response.speak(speechOutput).listen(repeat);
+            this.response.speak(speechOutput);
             this.emit(':responseReady');
 	}
     },
@@ -245,7 +239,10 @@ const handlers = {
                         this.emit('ExtraButtonPushed');
                     }    
                 } else {
-                    if (this.attributes['firstGadgetId'] === this.event.request.events[0].inputEvents[0].gadgetId) {
+		    // this gets invoked if only one button is being used
+		    if (this.attributes['gameMode'] === "SOLO") {
+			this.emit('FirstButtonPushed');
+                    } else if (this.attributes['firstGadgetId'] === this.event.request.events[0].inputEvents[0].gadgetId) {
                         this.emit('DuplicateButtonPushed');
                     } else {
                         this.emit('ButtonsRegistered');
@@ -255,16 +252,7 @@ const handlers = {
                 this.emit('FirstButtonRegistered');
             }
         } else if (this.event.request.events[0].name === 'timeout') {
-            // this handles the timeout event - stop the game if buttons are being used
-	    if (this.attributes['firstGadgetId']) {
-            	console.log(JSON.stringify(this.event.request.events[0]));
-            	this.emit('AMAZON.StopIntent');
-	    } else {
-		console.log("button timed out, but no gadget registered yet.");
-            	// Don't end the session, and don't open the microphone.
-            	delete this.handler.response.response.shouldEndSession;
-            	this.emit(':responseReady');
-	    }
+	    this.emit('HandleTimeout');
         } else {
             // this is to remove rapid fire buttons
             console.log("Skipping extra buttons");
@@ -273,9 +261,59 @@ const handlers = {
 	    this.emit(':responseReady');            
         }
     },
+    // process timeout
+    'HandleTimeout': function() {
+	console.log("Process Timeout");
+
+	if (this.attributes['firstGadgetId']) {
+            console.log(JSON.stringify(this.event.request.events[0]));
+
+	    if(this.attributes['throwNeeded']) {
+		console.log("Throw needed. Game over.");
+		// build the audio response to end the game
+	    	let speechOutput = "Too late. You just got blasted with a snowball. " +
+		    "Time to go inside and warm-up. " +
+		    "Thanks for playing!";
+                this.response.speak(speechOutput)
+
+        	// reset the gadgets for the next session
+        	this.attributes['firstGadgetId'] = null;
+        	this.attributes['secondGadgetId'] = null;
+
+                this.emit(':responseReady');
+                console.log(JSON.stringify(this.response));
+
+	    } else {
+		console.log("No throw required. Continue with another round.");
+
+		// acknowledge that the choice was correct
+		let speechOutput = "Nice job. No need to throw a snowball there. ";
+		this.attributes['round'] += 1;
+
+		// set the next round
+		    speechOutput = speechOutput + "Here is the next turn. ";
+
+		let repeatOutput = "Here is the next scenario to go with.";
+
+		this.response.speak(speechOutput).listen(repeatOutput);
+
+            	// extend the lease on the buttons for 30 seconds - this is now game mode
+            	buttonStartParams.timeout = 30000;
+            	this.response._addDirective(buttonStartParams);
+
+            	this.emit(':responseReady');
+	    	console.log(JSON.stringify(this.response));
+	    }
+	} else {
+            console.log("button timed out, but no gadget registered yet.");
+            // Don't end the session, and don't open the microphone.
+            delete this.handler.response.response.shouldEndSession;
+            this.emit(':responseReady');
+	}
+    },
     // this gets invoked when the first button is pushed during gameplay. This is the 'smash' button
     'FirstButtonPushed': function() {
-        console.log("Smash Button Pushed for " + this.attributes['soundType']);
+        console.log("Button Pushed for " + this.attributes['soundType']);
 
         // retreive saved attributes for gameplay
         let counter = Number(this.attributes['round']);
@@ -286,7 +324,7 @@ const handlers = {
 	if (this.attributes['gameOver']) {
 	    console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
-        } else if (this.attributes['soundType'] === 'bug') {
+        } else if (this.attributes['throwNeeded']) {
 	    // build the response including a random saying
 	    const actionsIndex = Math.round((Math.random() * actions.length)/actions.length);
             speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
@@ -340,7 +378,7 @@ const handlers = {
             this.attributes['round'] = counter;
 
 	    if (this.attributes['firstGadgetId']) {
-            	// extend the lease on the buttons for another 80 seconds, and reanimate the smash button
+            	// extend the lease on the buttons and reanimate the smash button
             	this.response._addDirective(buttonStartParams);
             	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
                 speechOutput = speechOutput + '<break time="8s"/>';
@@ -350,12 +388,12 @@ const handlers = {
             this.response.speak(speechOutput).listen(repeat);
 	    this.emit(':responseReady');
         } else {
-	    this.emit('AnimalSwat');
+	    this.emit('SnowballTrouble');
 	}
     },
-    // this is the function that gets called when the user swats an animal to end the game
-    'AnimalSwat': function() {
-        console.log("Swatted an animal - game over.");
+    // this is the function that gets called when the user hits something with a snowball that they weren't supposed to
+    'SnowballTrouble': function() {
+        console.log("Threw a snowball and hit something - game over.");
 
         // create sounds indicating a smash, negative response, then an intro for the end of game.
         let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
@@ -528,12 +566,12 @@ const handlers = {
 	this.response.cardRenderer(cardTitle, cardFeedback);            
 	this.emit(':responseReady');
     },
-    // this registers the first button and will be used to 'smash' the bugs
+    // this registers the first button and will be used to throw snowballs
     'FirstButtonRegistered': function() {
-        const speechOutput = "Great.  The red button will be your bug smash button. " +
-            "Now press another button, then we can begin the game." +
-            "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_waiting_loop_30s_01.mp3'/>";
-        const repeat = "Please push a second button so we can begin the game.";
+        const speechOutput = "Great.  The button is now active, and can be used to throw snowballs. " +
+            "Do you want to play a two player game? Say 'No' if you want to play in solo mode, " +
+	    "or press another button if you want to add a second player, then we can begin the game.";
+        const repeat = "Is there a second player? If so, Please push a second button so we can begin the game, or say 'No'.";
         console.log("First button registered");
 
         // save the gadget id for future reference
@@ -548,11 +586,11 @@ const handlers = {
         this.response._addDirective(buttonStartParams);
         
         this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
+	this.emit(':responseReady');
     },
     // this gets invoked after the second button gets registered.  It signals that the game can now begin.
     'ButtonsRegistered': function() {
-        let speechOutput = "Good job! Save the blue animals button registered. Use it when you hear an animal sound. " +
+        let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
             '<break time="2s"/>' +
             "Now let's get ready to play. " + '<break time="1s"/>' +
             "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_intro_01.mp3'/>" +
@@ -571,13 +609,15 @@ const handlers = {
             breathAnimationBlue));
         this.response._addDirective(buildButtonDownAnimationDirective([this.event.request.events[0].inputEvents[0].gadgetId]));
 
-        // extend the lease on the buttons for another 60 seconds
+        // extend the lease on the buttons for 30 seconds - this is now game mode
+	buttonStartParams.timeout = 30000;
         this.response._addDirective(buttonStartParams);
 
-        // select the first bug sound.
+        // select the first round to throw snowballs
         const sound = "<audio src='" + bugs[0].sound + "'/>" + '<break time="2s"/>' +
             "Remember, if you hear an insect, press the red button to smash it. " +
-            "Press the blue button if you hear an animal sound and save it. " + '<break time="10s"/>';
+            "Press the blue button if you hear an animal sound and save it. " + '<break time="2s"/>';
+
         this.attributes['latestSound'] = "<audio src='" + bugs[0].sound + "'/>";
         this.attributes['soundType'] = "bug";
         this.attributes['name'] = bugs[0].name;        
@@ -586,7 +626,7 @@ const handlers = {
         repeat = repeat + sound;
 
         this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
+	this.emit(':responseReady');
     },
     // this gets invoked when a third button gets pushed - the gameplay only supports two buttons
     'ExtraButtonPushed': function() {
@@ -608,8 +648,9 @@ const handlers = {
         this.response.speak(speechOutput).listen(repeat);
 	    this.emit(':responseReady');
     },    
+    // this is the function that gets invoked when help is requested
     'AMAZON.HelpIntent': function () {
-        let speechOutput = "The object of the game is to smash as many bugs as you can. " +
+        let speechOutput = "The object of the game is to knock down as many things as possible with snowballs. " +
             "Just listen carefully to the sounds that are being played. For example, " + 
             "<audio src='https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_cat_meow_1x_01.mp3'/>" +
             "is the sound of a cat. When you hear this sound, press the blue button or say save. " + '<break time="1s"/>' +
@@ -676,7 +717,7 @@ const handlers = {
     'AMAZON.StopIntent': function () {
 	console.log("Stopped Game");
 
-        let speechOutput = "Thanks for playing Bug Smash! ";
+        let speechOutput = "Thanks for playing Snowball Fight! ";
 
         // check for high score - this will only get invoked if user quits on a 'winning streak'
         if (this.attributes['round'] > this.attributes['highScore']) {
