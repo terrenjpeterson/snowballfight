@@ -22,6 +22,21 @@ const expertLevel = 20;
 const starLevel = 12;
 const advancedLevel = 5;
 
+const scenarios = [
+    { 
+	"throwNeeded":true,  
+	"timeout":20000, 
+	"description":"You see a blue hat above the wall of the snow fort.",
+	"successMessage":"Nice shot! You knocked his hat off with that throw."
+    },
+    { 
+	"throwNeeded":false, 
+	"timeout":15000, 
+	"description":"You hear your mom calling you for hot chocolate.",
+	"errorMessage":"Oh no, your throw missed, and now you have to go inside for timeout."
+    } 
+];
+
 const animals = [
     { "name":"chester the cat", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_cat_angry_meow_1x_02.mp3" },
     { "name":"ellie the elephant", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_elephant_01.mp3" },
@@ -130,6 +145,7 @@ const handlers = {
         this.attributes['originatingRequestId'] = this.event.request.requestId;
         this.attributes['round'] = 1;
  	this.attributes['gameOver'] = false;
+	this.attributes['scenariosIndex'] = 0;
 
         // Build the 'button down' animation for when the button is pressed.
         this.response._addDirective(buildButtonDownAnimationDirective([]));
@@ -265,7 +281,12 @@ const handlers = {
     'HandleTimeout': function() {
 	console.log("Process Timeout");
 
-	if (this.attributes['firstGadgetId']) {
+	if (this.attributes['gameOver']) {
+            console.log("button timed out, game already over, so don't override message.");
+            // Don't end the session, and don't open the microphone.
+            delete this.handler.response.response.shouldEndSession;
+            this.emit(':responseReady');
+	} else if (this.attributes['firstGadgetId']) {
             console.log(JSON.stringify(this.event.request.events[0]));
 
 	    if(this.attributes['throwNeeded']) {
@@ -290,16 +311,21 @@ const handlers = {
 		let speechOutput = "Nice job. No need to throw a snowball there. ";
 		this.attributes['round'] += 1;
 
-		// set the next round
-		    speechOutput = speechOutput + "Here is the next turn. ";
-
-		let repeatOutput = "Here is the next scenario to go with.";
+            	// build the message for the next round including a random saying
+            	const scenariosIndex = Math.round((Math.random() * scenarios.length)/scenarios.length);
+            	speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
+            	let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
 
 		this.response.speak(speechOutput).listen(repeatOutput);
 
-            	// extend the lease on the buttons for 30 seconds - this is now game mode
-            	buttonStartParams.timeout = 30000;
+            	// save attributes for next event
+            	this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
+		this.attributes['scenariosIndex'] = scenariosIndex;
+
+            	// extend the lease on the buttons based on the length of the audio in the scenario
+            	buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
             	this.response._addDirective(buttonStartParams);
+            	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
 
             	this.emit(':responseReady');
 	    	console.log(JSON.stringify(this.response));
@@ -311,79 +337,39 @@ const handlers = {
             this.emit(':responseReady');
 	}
     },
-    // this gets invoked when the first button is pushed during gameplay. This is the 'smash' button
+    // this gets invoked when the first button is pushed during gameplay.
     'FirstButtonPushed': function() {
         console.log("Button Pushed for " + this.attributes['soundType']);
-
-        // retreive saved attributes for gameplay
-        let counter = Number(this.attributes['round']);
-
-        // create sounds indicating a smash
-        let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>";
 
 	if (this.attributes['gameOver']) {
 	    console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
         } else if (this.attributes['throwNeeded']) {
-	    // build the response including a random saying
-	    const actionsIndex = Math.round((Math.random() * actions.length)/actions.length);
-            speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
-                '<break time="1s"/>' + actions[actionsIndex].description + '<break time="1s"/>';
-	    if (counter === 1) {
-		speechOutput = speechOutput + "That was your first one - off to a nice start!";
-            } else if (counter === 3) {
-                speechOutput = speechOutput + "That makes three - great work!";
-            } else if (counter === 5) {
-                speechOutput = speechOutput + "Wow - you are going to get tired. That makes five!";
-            } else if (counter === 8) {
-                speechOutput = speechOutput + "What great aim.  Now you have gotten eight in a row!";
-	    } else if (counter === 12) {
-		speechOutput = speechOutput + "A dozen in a row. You're getting good at this!";
-	    } else if (counter === 20) {
-                speechOutput = speechOutput + "Twenty in a row! Will you ever miss?";
-	    } else {
-            	speechOutput = speechOutput + "That makes " + counter + " in a row. ";
-	    }
-	    speechOutput = speechOutput + '<break time="2s"/>';
 
-            // setup for the next round
-            const bugGenerator = Math.floor(Math.random() * 100);
-            let sound = "";
-            let type = "";
-            
-            // generate next sound
-            const bugIndex = 50;
-            if (bugGenerator > bugIndex) {
-                const insectIndex = Math.round(((100-bugGenerator)/bugIndex) * (bugs.length - 1));
-                sound = "<audio src='" + bugs[insectIndex].sound + "'/>";
-                type = "bug";
-                this.attributes['name'] = bugs[insectIndex].name;
-            } else {
-                const animalIndex = Math.round((bugGenerator/bugIndex) * (animals.length - 1));
-                sound = "<audio src='" + animals[animalIndex].sound + "'/>";
-                type = "animal";
-                this.attributes['name'] = animals[animalIndex].name;
-            }
-            counter = counter + 1;
-        
-            // create audio response for gameplay    
-	    const transitionsIndex = Math.round((Math.random() * transitions.length)/transitions.length);
-            speechOutput = speechOutput + transitions[transitionsIndex].description + '<break time="2s"/>' + sound;
-            let repeat = "Here was the last sound again. " + '<break time="2s"/>' + sound;
-            console.log("Next Round:" + sound);
+            // retreive saved attributes for gameplay
+            let counter = Number(this.attributes['round']);
+
+            // create sounds indicating a hit with the snowball
+            let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
+                "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
+		'<break time="1s"/>' +
+		scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
+
+	    // build the message for the next round including a random saying
+	    const scenariosIndex = Math.round((Math.random() * scenarios.length)/scenarios.length);
+            speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
+	    let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
 
             // save attributes for next event
-            this.attributes['soundType'] = type;
-            this.attributes['latestSound'] = sound;
+            counter++;
             this.attributes['round'] = counter;
+            this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
+            this.attributes['scenariosIndex'] = scenariosIndex;
 
-	    if (this.attributes['firstGadgetId']) {
-            	// extend the lease on the buttons and reanimate the smash button
-            	this.response._addDirective(buttonStartParams);
-            	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
-                speechOutput = speechOutput + '<break time="8s"/>';
-                repeat = repeat + '<break time="2s"/>';
-	    }
+            // extend the lease on the buttons and reanimate the first player button
+	    buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
+            this.response._addDirective(buttonStartParams);
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
 
             this.response.speak(speechOutput).listen(repeat);
 	    this.emit(':responseReady');
@@ -398,7 +384,7 @@ const handlers = {
         // create sounds indicating a smash, negative response, then an intro for the end of game.
         let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
 	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_negative_response_02.mp3'/>" +
-	    "Game over. You just swatted " + this.attributes['name'] + ". ";
+	    "Game over. " + scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
 
 	// this round wasn't successful, so decrement so it doesn't count towards high score
 	this.attributes['round'] -= 1;
@@ -438,6 +424,9 @@ const handlers = {
 
         // identify the game as over until a reset occurs
 	this.attributes['gameOver'] = true;
+
+        // initiate settings for buttons so they don't timeout ahead of the speechOutput and reprompt
+        this.response._addDirective(buttonStartParams);
 
         this.response.speak(speechOutput).listen(reprompt);
         this.response.cardRenderer(cardTitle, cardFeedback);
