@@ -8,7 +8,7 @@ const appId = 'amzn1.ask.skill.0f8fdbe7-01a2-41d0-877a-c393e543dc58';
 let buttonStartParams = require("data/rollCall.json");
 
 // These are the backgrounds used to display on the screen including the initial launch
-const startupImage = 'https://s3.amazonaws.com/bugsmashgame/gameIcons/1024x600background.png';
+const startupImage = 'https://s3.amazonaws.com/snowballgame/images/1024x600background.png';
 const skillName = 'Snowball Fight';
 const startupTitle = 'Watch out for the cold!';
 
@@ -33,45 +33,9 @@ const scenarios = [
 	"throwNeeded":false, 
 	"timeout":15000, 
 	"description":"You hear your mom calling you for hot chocolate.",
-	"errorMessage":"Oh no, your throw missed, and now you have to go inside for timeout."
+	"errorMessage":"Oh no, your throw missed, and now you have to go inside for timeout.",
+	"successMessage":"Smart move. No need to throw a snowball at your mother! "
     } 
-];
-
-const animals = [
-    { "name":"chester the cat", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_cat_angry_meow_1x_02.mp3" },
-    { "name":"ellie the elephant", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_elephant_01.mp3" },
-    { "name":"bowser the dog", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_dog_med_bark_2x_02.mp3" },
-    { "name":"heidi the horse", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_horse_whinny_01.mp3" },
-    { "name":"leo the lion", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_lion_roar_01.mp3" },
-    { "name":"monty the monkey", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_monkeys_chatter_01.mp3" },
-    { "name":"stella the sheep", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_sheep_bleat_03.mp3" },
-    { "name":"tom the turkey", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_turkey_gobbling_01.mp3" },
-    { "name":"willie the wolf", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_wolf_howl_02.mp3" },
-    { "name":"billie the bear", "sound":"https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_bear_roar_grumble_01.mp3" }
-];
-
-const bugs = [
-    { "name":"mosquito", "sound":"https://s3.amazonaws.com/bugsmashgame/mosquitos.mp3" },
-    { "name":"bee", "sound":"https://s3.amazonaws.com/bugsmashgame/bees.mp3" },
-    { "name":"cicada", "sound":"https://s3.amazonaws.com/bugsmashgame/cicadas.mp3" },
-    { "name":"cricket", "sound":"https://s3.amazonaws.com/bugsmashgame/crickets.mp3" }
-];
-
-const actions = [
-    { "description":"You got it!" },
-    { "description":"Ouch. That bug is smashed!"},
-    { "description":"Nice aim. You squashed that bug."},
-    { "description":"That bug didn't see that coming."},
-    { "description":"Good swing. That ought to scare away his friends." },
-    { "description":"Nice job! You really took care of that one." },
-    { "description":"What a swat! You got that bug!" }
-];
-
-const transitions = [
-    { "description":"Here is the next one." },
-    { "description":"Listen closely. This is next." },
-    { "description":"What's next? Try this." },
-    { "description":"Okay, now you hear this sound." }
 ];
 
 // this is the card that requests feedback after the game is played
@@ -199,7 +163,9 @@ const handlers = {
 
 	    // create the initial audio to stage the game
 	    let speechOutput = "Okay, let's begin a solo match. " + '<break time="1s"/>' +
-		"You walk outside, and see one of your friends working on their snow fort. " +
+		"You walk outside, and it's a beautiful winter day! " +
+		"<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
+		"You see one of your friends working on their snow fort. " +
 		"Looks like an easy target as they haven't seen you yet!";	
 	    let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
 		"Press the button if you want to throw a snowball at them.";
@@ -292,8 +258,10 @@ const handlers = {
 	    if(this.attributes['throwNeeded']) {
 		console.log("Throw needed. Game over.");
 		// build the audio response to end the game
-	    	let speechOutput = "Too late. You just got blasted with a snowball. " +
-		    "Time to go inside and warm-up. " +
+	    	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
+                    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
+		    "Too late. You just got blasted with a snowball. " + '<break time="1s"/>' +
+		    "Time to go inside and warm-up. " + '<break time="1s"/>' +
 		    "Thanks for playing!";
                 this.response.speak(speechOutput)
 
@@ -308,7 +276,7 @@ const handlers = {
 		console.log("No throw required. Continue with another round.");
 
 		// acknowledge that the choice was correct
-		let speechOutput = "Nice job. No need to throw a snowball there. ";
+		let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage;
 		this.attributes['round'] += 1;
 
             	// build the message for the next round including a random saying
@@ -395,12 +363,6 @@ const handlers = {
             	"<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_outro_01.mp3'/>";
 	} else {
             console.log("Give message around instructions.");
-	    if (this.attributes['firstGadgetId']) {
-	    	speechOutput = speechOutput + "Remember, press the blue button to save the animal when you hear it. The red button " +
-		    "is for swatting bugs. ";
-	    } else {
-		speechOutput = speechOutput + "Remember, say the word 'Save' when you hear an animal sound. ";
-	    }
 	}
 
 	// check for high score
@@ -449,111 +411,13 @@ const handlers = {
         if (this.attributes['gameOver']) {     
             console.log("Attempt to play a game that is over.");
 	    this.emit('GameOver');
-        } else if (this.attributes['soundType'] === 'bug') {
-	    this.emit('SaveBug');
         } else {
             // retreive saved attributes for gameplay
             let counter = Number(this.attributes['round']);
 
-            let animal = this.attributes['name'];
-            let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_positive_response_01.mp3'/>" +
-            	"Great job! You just saved " + animal + ". " + this.attributes['latestSound'] + '<break time="2s"/>' +
-                "That makes " + counter + " in a row. " + '<break time="2s"/>';
-
-            // setup for the next round
-            const bugGenerator = Math.floor(Math.random() * 100);
-            let sound = "";
-            let type = "";
-            
-            // generate next sound
-            const bugIndex = 50;            
-            if (bugGenerator > bugIndex) {            
-                const insectIndex = Math.round(((100 - bugGenerator)/bugIndex) * (bugs.length - 1));
-                sound = "<audio src='" + bugs[insectIndex].sound + "'/>";
-                type = "bug";
-                this.attributes['name'] = bugs[insectIndex].name;
-            } else {
-                const animalIndex = Math.round((bugGenerator/50) * (animals.length - 1));
-                sound = "<audio src='" + animals[animalIndex].sound + "'/>";
-                type = "animal";
-                this.attributes['name'] = animals[animalIndex].name;
-            }
-            counter = counter + 1;
-        
-            // create audio response for gameplay
-            const transitionsIndex = Math.round((Math.random() * transitions.length)/transitions.length);
-            speechOutput = speechOutput + transitions[transitionsIndex].description + '<break time="2s"/>' + sound;
-            let repeat = "Here was the last sound again. " + '<break time="1s"/>' + sound;
-
-            console.log("Next Round:" + sound);
-
-            // save attributes for next event
-            this.attributes['soundType'] = type;
-            this.attributes['latestSound'] = sound;
-            this.attributes['round'] = counter;
-
-
-            if (this.attributes['firstGadgetId']) {
-            	// extend the lease on the buttons for another 60 seconds
-            	this.response._addDirective(buttonStartParams);
-            	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
-		speechOutput = speechOutput + '<break time="8s"/>';
-		repeat = repeat + '<break time="2s"/>';
-	    }
-
             this.response.speak(speechOutput).listen(repeat);
 	    this.emit(':responseReady');
         }
-    },
-    // this is the logic for when the bug gets saved which ends the game
-    'SaveBug': function() {
-        console.log("Saved a bug - game over.");
-            
-        // this round wasn't successful, so decrement so it doesn't count towards high score
-        this.attributes['round'] -= 1;
-            
-	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_negative_response_02.mp3'/>" +
-	    '<break time="2s"/>' + "Oops. That was a bug. " + '<break time="1s"/>' + "Game over. ";
-
-        // check if the game was just getting started - redirect user as they might not understand how to play
-        if (this.attributes['round'] > minScore) {
-            speechOutput = speechOutput + "You were able to get " + this.attributes['round'] + " correct in a row. " +
-                "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_outro_01.mp3'/>";
-        } else {
-	    console.log("Give message around instructions.");
-            if (this.attributes['firstGadgetId']) {
-                speechOutput = speechOutput + "Remember, press the red button to smash the bug when you hear it. The blue button " +
-                    "is for saving things like rescuing animals. ";
-            } else {
-                speechOutput = speechOutput + "Remember, say the word 'Smash' when you hear a bug sound. ";
-            }
-        }
-
-        // check for high score
-        if (this.attributes['round'] > this.attributes['highScore']) {
-            console.log("New High Score");
-            this.attributes['highScore'] = this.attributes['round'];
-            if (this.attributes['round'] > minScore) {
-                speechOutput = speechOutput + "Congratulations on a new high score! ";
-                if (this.attributes['round'] > expertLevel) {
-                    speechOutput = speechOutput + "You made it to the expert level animal saving crew! ";
-                } else if (this.attributes['round'] > starLevel) {
-                    speechOutput = speechOutput + "You made it to the star level animal saving team! ";
-                } else if (this.attributes['round'] > advancedLevel) {
-                    speechOutput = speechOutput + "You are an advanced animal rescuer! ";
-                }
-            }
-        }
-            
-        speechOutput = speechOutput + "Please say 'Start Over' to try again, or say 'Stop' if you are all done.";
-        const reprompt = "Ready to try again? Just say 'Start Over' to begin a new game.";
-
-        // identify the game as over until a reset occurs
-        this.attributes['gameOver'] = true;
-
-        this.response.speak(speechOutput).listen(reprompt);
-	this.response.cardRenderer(cardTitle, cardFeedback);            
-	this.emit(':responseReady');
     },
     // this registers the first button and will be used to throw snowballs
     'FirstButtonRegistered': function() {
@@ -602,18 +466,6 @@ const handlers = {
 	buttonStartParams.timeout = 30000;
         this.response._addDirective(buttonStartParams);
 
-        // select the first round to throw snowballs
-        const sound = "<audio src='" + bugs[0].sound + "'/>" + '<break time="2s"/>' +
-            "Remember, if you hear an insect, press the red button to smash it. " +
-            "Press the blue button if you hear an animal sound and save it. " + '<break time="2s"/>';
-
-        this.attributes['latestSound'] = "<audio src='" + bugs[0].sound + "'/>";
-        this.attributes['soundType'] = "bug";
-        this.attributes['name'] = bugs[0].name;        
-        
-        speechOutput = speechOutput + sound;
-        repeat = repeat + sound;
-
         this.response.speak(speechOutput).listen(repeat);
 	this.emit(':responseReady');
     },
@@ -635,15 +487,13 @@ const handlers = {
         console.log("Same button picked a second time");
 
         this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
+	this.emit(':responseReady');
     },    
     // this is the function that gets invoked when help is requested
     'AMAZON.HelpIntent': function () {
         let speechOutput = "The object of the game is to knock down as many things as possible with snowballs. " +
             "Just listen carefully to the sounds that are being played. For example, " + 
-            "<audio src='https://s3.amazonaws.com/ask-soundlibrary/animals/amzn_sfx_cat_meow_1x_01.mp3'/>" +
             "is the sound of a cat. When you hear this sound, press the blue button or say save. " + '<break time="1s"/>' +
-            "When you hear an insect like this, " + "<audio src='" + bugs[0].sound + "'/>" +
             " press the red button to smash it, or just say the word 'smash'. " + '<break time="1s"/>' +
             "See how many correct responses you can get in a row. " + '<break time="1s"/>';
         let reprompt = "";
@@ -678,8 +528,6 @@ const handlers = {
         // extend the lease on the buttons for another 60 seconds
         this.response._addDirective(buttonStartParams);
 
-        // select the first bug sound.
-        let sound = "<audio src='" + bugs[0].sound + "'/>" + '<break time="2s"/>';
 	if (this.attributes['firstGadgetId']) {
             sound = sound + "Remember, if you hear an insect, press the red button to smash it. " +
             	"Press the blue button if you hear an animal sound and save it. " + '<break time="10s"/>';
@@ -687,10 +535,6 @@ const handlers = {
             sound = sound + "Remember, if you hear an insect, say 'smash' to get it. " +
                 "When you hear an animal sound, say 'save' to rescue it. ";
 	}
-
-        this.attributes['latestSound'] = "<audio src='" + bugs[0].sound + "'/>";
-        this.attributes['soundType'] = "bug";
-        this.attributes['name'] = bugs[0].name;        
 
         speechOutput = speechOutput + sound;
         repeat = repeat + sound;
@@ -733,7 +577,7 @@ const handlers = {
             reprompt = "Here is the latest sound. Go ahead and either smash or save. " + this.attributes['latestSound'];
         } else {
             speechOutput = speechOutput + "You are currently setting up buttons to begin a game. ";
-            reprompt = "Please press two Echo buttons if you want to play the Smash Bug game.";
+            reprompt = "Please press two Echo buttons if you want to play the Snowball Fight game.";
         }
 
         this.response.speak(speechOutput).listen(reprompt);
