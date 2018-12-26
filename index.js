@@ -25,17 +25,39 @@ const advancedLevel = 5;
 const scenarios = [
     { 
 	"throwNeeded":true,  
-	"timeout":20000, 
+	"timeout":25000, 
 	"description":"You see a blue hat above the wall of the snow fort.",
-	"successMessage":"Nice shot! You knocked his hat off with that throw."
+	"successMessage":'Nice shot!<break time="1s"/><voice name="Justin">Where did that come from?</voice><break time="1s"/>You knocked his hat off with that throw.',
+	"errorMessage":"Too late. You just got blasted with a snowball.<break time=\"1s\"/><voice name=\"Justin\">Ha Ha!</voice>"
     },
     { 
 	"throwNeeded":false, 
-	"timeout":15000, 
-	"description":"You hear your mom calling you for hot chocolate.",
-	"errorMessage":"Oh no, your throw missed, and now you have to go inside for timeout.",
-	"successMessage":"Smart move. No need to throw a snowball at your mother! "
-    } 
+	"timeout":25000, 
+	"description":'You hear your mom calling you.<break time="1s"/><voice name="Joanna">I made some hot chocolate. Get it before it turns cold!</voice>',
+	"errorMessage":"Oh no.<break time=\"1s\"/><voice name=\"Joanna\">Okay, time to go inside. No throwing snowballs at your mother!</voice><break time=\"1s\"/>Next time don't press your button to throw at her.",
+	"successMessage":"Smart move. No need to throw a snowball at your mother, and this hot chocolate has marshmallows!"
+    },
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"You see a pile of snowballs inside the snow fort.",
+	"errorMessage":"Too slow. You just got hit with a snowball.",
+        "successMessage":"Good job!<break time=\"1s\"/><voice name=\"Justin\">Oh no. Now I have to make more.</voice><break time=\"1s\">That's less snowballs you need to worry about."
+    },
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"There's a icicle on the edge of your garage.<audio src='soundbank://soundlibrary/magic/amzn_sfx_fairy_sparkle_chimes_01'/> ",
+	"errorMessage":"Too much watching the ice melt. You got hit from the back by a snowball. ",
+        "successMessage":"Good aim. It came down in one shot. "
+    },
+    {
+        "throwNeeded":true,
+        "timeout":20000,
+        "description":"You see a girl running at you with a snowball in her hand.<break time=\"1s\"/><voice name=\"Ivy\">Take that!</voice>",
+	"errorMessage":"Wow that was cold!<break time=\"1s\"/><voice name=\"Ivy\">Got you!</voice>",
+        "successMessage":"That was a close one.<break time=\"1s\"/><voice name=\"Ivy\">You missed and I'm coming back!</voice>"
+    }
 ];
 
 // this is the card that requests feedback after the game is played
@@ -110,6 +132,7 @@ const handlers = {
         this.attributes['round'] = 1;
  	this.attributes['gameOver'] = false;
 	this.attributes['scenariosIndex'] = 0;
+	this.attributes['gameMode'] === "TBD";
 
         // Build the 'button down' animation for when the button is pressed.
         this.response._addDirective(buildButtonDownAnimationDirective([]));
@@ -260,7 +283,7 @@ const handlers = {
 		// build the audio response to end the game
 	    	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
                     "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
-		    "Too late. You just got blasted with a snowball. " + '<break time="1s"/>' +
+		    scenarios[this.attributes['scenariosIndex']].errorMessage +		    	
 		    "Time to go inside and warm-up. " + '<break time="1s"/>' +
 		    "Thanks for playing!";
                 this.response.speak(speechOutput)
@@ -273,30 +296,7 @@ const handlers = {
                 console.log(JSON.stringify(this.response));
 
 	    } else {
-		console.log("No throw required. Continue with another round.");
-
-		// acknowledge that the choice was correct
-		let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage;
-		this.attributes['round'] += 1;
-
-            	// build the message for the next round including a random saying
-            	const scenariosIndex = Math.round((Math.random() * scenarios.length)/scenarios.length);
-            	speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
-            	let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
-
-		this.response.speak(speechOutput).listen(repeatOutput);
-
-            	// save attributes for next event
-            	this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
-		this.attributes['scenariosIndex'] = scenariosIndex;
-
-            	// extend the lease on the buttons based on the length of the audio in the scenario
-            	buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
-            	this.response._addDirective(buttonStartParams);
-            	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
-
-            	this.emit(':responseReady');
-	    	console.log(JSON.stringify(this.response));
+            	this.emit('GoodNoThrow');
 	    }
 	} else {
             console.log("button timed out, but no gadget registered yet.");
@@ -305,9 +305,37 @@ const handlers = {
             this.emit(':responseReady');
 	}
     },
+    // this handles when a scenario exists where nothing should be thrown
+    'GoodNoThrow': function() {
+	console.log("No throw required. Continue with another round.");
+
+	// acknowledge that the choice was correct
+	let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage + " ";
+	this.attributes['round'] += 1;
+
+	// build the message for the next round including a random saying
+	const scenariosIndex = Math.floor(Math.random() * scenarios.length);
+	console.log("Next Scenario:" + scenariosIndex);
+
+	speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
+	let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
+	this.response.speak(speechOutput).listen(repeatOutput);
+
+	// save attributes for next event
+	this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
+	this.attributes['scenariosIndex'] = scenariosIndex;
+                
+	// extend the lease on the buttons based on the length of the audio in the scenario
+	buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
+	this.response._addDirective(buttonStartParams);
+	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+                
+	this.emit(':responseReady');
+	console.log(JSON.stringify(this.response));
+    },
     // this gets invoked when the first button is pushed during gameplay.
     'FirstButtonPushed': function() {
-        console.log("Button Pushed for " + this.attributes['soundType']);
+        console.log("Button Pushed by player one.");
 
 	if (this.attributes['gameOver']) {
 	    console.log("Attempt to play a game that is over.");
@@ -324,7 +352,7 @@ const handlers = {
 		scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
 
 	    // build the message for the next round including a random saying
-	    const scenariosIndex = Math.round((Math.random() * scenarios.length)/scenarios.length);
+	    const scenariosIndex = Math.floor(Math.random() * scenarios.length);
             speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
 	    let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
 
@@ -341,6 +369,7 @@ const handlers = {
 
             this.response.speak(speechOutput).listen(repeat);
 	    this.emit(':responseReady');
+	    console.log(JSON.stringify(this.response));
         } else {
 	    this.emit('SnowballTrouble');
 	}
@@ -352,7 +381,7 @@ const handlers = {
         // create sounds indicating a smash, negative response, then an intro for the end of game.
         let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
 	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_negative_response_02.mp3'/>" +
-	    "Game over. " + scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
+	    scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
 
 	// this round wasn't successful, so decrement so it doesn't count towards high score
 	this.attributes['round'] -= 1;
@@ -391,8 +420,8 @@ const handlers = {
         this.response._addDirective(buttonStartParams);
 
         this.response.speak(speechOutput).listen(reprompt);
-        this.response.cardRenderer(cardTitle, cardFeedback);
         this.emit(':responseReady');
+	console.log(JSON.stringify(this.response));
     },
     // this is called when someone attempts to continue playing a game that is already over
     'GameOver': function() {
@@ -423,7 +452,7 @@ const handlers = {
     'FirstButtonRegistered': function() {
         const speechOutput = "Great.  The button is now active, and can be used to throw snowballs. " +
             "Do you want to play a two player game? Say 'No' if you want to play in solo mode, " +
-	    "or press another button if you want to add a second player, then we can begin the game.";
+	    "or press another button to add a second player.";
         const repeat = "Is there a second player? If so, Please push a second button so we can begin the game, or say 'No'.";
         console.log("First button registered");
 
@@ -443,13 +472,25 @@ const handlers = {
     },
     // this gets invoked after the second button gets registered.  It signals that the game can now begin.
     'ButtonsRegistered': function() {
+        console.log("Second button registered - ready to begin game.");
+
         let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
+	    "Remember, whomever is first at hitting the target wins a point, but if you throw a snowball when you're not supposed to, " +
+	    "your game will be done as you need to go inside. " +
             '<break time="2s"/>' +
             "Now let's get ready to play. " + '<break time="1s"/>' +
             "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_intro_01.mp3'/>" +
-            '<break time="1s"/>';
-        let repeat = "Here was the sound again. ";
-        console.log("Second button registered - ready to begin game.");
+            '<break time="1s"/>' +
+	    "You walk outside, and it's a beautiful winter day! " +
+	    "<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
+	    "You see one of your friends working on their snow fort. " +
+	    "Looks like an easy target as they haven't seen you yet!";
+	
+	// set the parameter indicating that a snowball should be thrown
+	this.attributes['throwNeeded'] = true;
+
+	let repeat = "You are outside and see one of your friends working on their snow fort. " +
+	    "Press the button if you want to throw a snowball at them.";
 
 	// set the skip button attribute to facilitate accurate gameplay
 	this.attributes['buttonSkip'] = buttonSkip;
@@ -477,7 +518,7 @@ const handlers = {
         console.log("Two gadgets already registered");
 
         this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
+	this.emit(':responseReady');
     },
     // this gets invoked when one button is attempted for use in the game for two different actions
     'DuplicateButtonPushed': function() {
@@ -535,9 +576,6 @@ const handlers = {
             sound = sound + "Remember, if you hear an insect, say 'smash' to get it. " +
                 "When you hear an animal sound, say 'save' to rescue it. ";
 	}
-
-        speechOutput = speechOutput + sound;
-        repeat = repeat + sound;
 
         this.response.speak(speechOutput).listen(repeat);
 	this.emit(':responseReady');        
