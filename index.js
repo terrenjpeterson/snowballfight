@@ -42,7 +42,7 @@ const scenarios = [
         "timeout":25000,
         "description":"You see a pile of snowballs inside the snow fort.",
 	"errorMessage":"Too slow. You just got hit with a snowball.",
-        "successMessage":"Good job!<break time=\"1s\"/><voice name=\"Justin\">Oh no. Now I have to make more.</voice><break time=\"1s\">That's less snowballs you need to worry about."
+        "successMessage":"Good job!<break time=\"1s\"/><voice name=\"Justin\">Oh no. Now I have to make more.</voice><break time=\"1s\"/>That's less snowballs you need to worry about."
     },
     {
         "throwNeeded":true,
@@ -53,10 +53,17 @@ const scenarios = [
     },
     {
         "throwNeeded":true,
-        "timeout":20000,
+        "timeout":25000,
         "description":"You see a girl running at you with a snowball in her hand.<break time=\"1s\"/><voice name=\"Ivy\">Take that!</voice>",
 	"errorMessage":"Wow that was cold!<break time=\"1s\"/><voice name=\"Ivy\">Got you!</voice>",
         "successMessage":"That was a close one.<break time=\"1s\"/><voice name=\"Ivy\">You missed and I'm coming back!</voice>"
+    },
+    {
+	"throwNeeded":true,
+	"timeout":25000,
+	"description":"You see your cranky old neighbor shoveling his driveway.<break time=\"1s\"/><voice name=\"Matthew\">Can't wait until this snow melts.</voice>",
+	"errorMessage":"<voice name=\"Matthew\">Hey kid, I see you over there. I'm calling your dad.</voice><break time=\"1s\"/>Time to go inside and lay low for a while.",
+	"successMessage":"Great aim!<break time=\"1s\"/><voice name=\"Matthew\">Oh no, that is so cold. Better head inside and warm up!</voice>"
     }
 ];
 
@@ -132,7 +139,7 @@ const handlers = {
         this.attributes['round'] = 1;
  	this.attributes['gameOver'] = false;
 	this.attributes['scenariosIndex'] = 0;
-	this.attributes['gameMode'] === "TBD";
+	this.attributes['gameMode'] = "TBD";
 
         // Build the 'button down' animation for when the button is pressed.
         this.response._addDirective(buildButtonDownAnimationDirective([]));
@@ -341,38 +348,49 @@ const handlers = {
 	    console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
         } else if (this.attributes['throwNeeded']) {
-
-            // retreive saved attributes for gameplay
-            let counter = Number(this.attributes['round']);
-
-            // create sounds indicating a hit with the snowball
-            let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
-                "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
-		'<break time="1s"/>' +
-		scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
-
-	    // build the message for the next round including a random saying
-	    const scenariosIndex = Math.floor(Math.random() * scenarios.length);
-            speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
-	    let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
-
-            // save attributes for next event
-            counter++;
-            this.attributes['round'] = counter;
-            this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
-            this.attributes['scenariosIndex'] = scenariosIndex;
-
-            // extend the lease on the buttons and reanimate the first player button
-	    buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
-            this.response._addDirective(buttonStartParams);
-            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
-
-            this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
-	    console.log(JSON.stringify(this.response));
+	    console.log("Good Hit made.");
+	    this.emit('GoodHit', "Red");
         } else {
 	    this.emit('SnowballTrouble');
 	}
+    },
+    // this is executed when the an object is appropriately hit
+    'GoodHit': function(player) {
+	console.log("Object was appropriately hit by the " + player + " player.");
+
+        // create sounds indicating a hit with the snowball
+        let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
+            "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
+            '<break time="1s"/>' +
+            scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
+
+	// indicate who scored first
+	speechOutput = speechOutput + "The " + player + " player won this round. " + '<break time="1s"/>';
+
+	if (player === "Red") {
+	    this.attributes['redScore']++;
+	} else {
+            this.attributes['blueScore']++;
+	}
+
+        // build the message for the next round including a random saying
+        const scenariosIndex = Math.floor(Math.random() * scenarios.length);
+        speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
+        let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
+
+        // save attributes for next event
+        this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
+        this.attributes['scenariosIndex'] = scenariosIndex;
+
+        // extend the lease on the buttons and reanimate the first player button
+        buttonStartParams.timeout = (Number(scenarios[scenariosIndex].timeout) + 2000);
+        this.response._addDirective(buttonStartParams);
+        this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+        this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+
+        this.response.speak(speechOutput).listen(repeat);
+        this.emit(':responseReady');
+        console.log(JSON.stringify(this.response));
     },
     // this is the function that gets called when the user hits something with a snowball that they weren't supposed to
     'SnowballTrouble': function() {
@@ -435,17 +453,14 @@ const handlers = {
     },
     // this is the logic that gets invoked when the blue button is pressed, or the word 'Save' is used
     'SecondButtonPushed': function() {
-        console.log("Save button pushed for - " + this.attributes['soundType']);
+        console.log("Second player button pushed.");
 
         if (this.attributes['gameOver']) {     
             console.log("Attempt to play a game that is over.");
 	    this.emit('GameOver');
         } else {
-            // retreive saved attributes for gameplay
-            let counter = Number(this.attributes['round']);
-
-            this.response.speak(speechOutput).listen(repeat);
-	    this.emit(':responseReady');
+	    console.log("Player Two hit the object.");
+            this.emit('GoodHit', "Blue");
         }
     },
     // this registers the first button and will be used to throw snowballs
@@ -472,7 +487,12 @@ const handlers = {
     },
     // this gets invoked after the second button gets registered.  It signals that the game can now begin.
     'ButtonsRegistered': function() {
-        console.log("Second button registered - ready to begin game.");
+        console.log("Second button registered - ready to begin two playter game.");
+
+	// set the default attributes to begin the game
+	this.attributes['gameMode'] = "DUAL";
+	this.attributes['redScore']  = 0;
+	this.attributes['blueScore'] = 0;
 
         let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
 	    "Remember, whomever is first at hitting the target wins a point, but if you throw a snowball when you're not supposed to, " +
@@ -503,8 +523,8 @@ const handlers = {
             breathAnimationBlue));
         this.response._addDirective(buildButtonDownAnimationDirective([this.event.request.events[0].inputEvents[0].gadgetId]));
 
-        // extend the lease on the buttons for 30 seconds - this is now game mode
-	buttonStartParams.timeout = 30000;
+        // extend the lease on the buttons for 40 seconds - this is now game mode
+	buttonStartParams.timeout = 40000;
         this.response._addDirective(buttonStartParams);
 
         this.response.speak(speechOutput).listen(repeat);
