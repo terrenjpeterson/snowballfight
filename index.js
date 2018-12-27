@@ -283,25 +283,9 @@ const handlers = {
             delete this.handler.response.response.shouldEndSession;
             this.emit(':responseReady');
 	} else if (this.attributes['firstGadgetId']) {
-            console.log(JSON.stringify(this.event.request.events[0]));
-
+	    console.log("Gadget Registered - Timeout Received");
 	    if(this.attributes['throwNeeded']) {
-		console.log("Throw needed. Game over.");
-		// build the audio response to end the game
-	    	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
-                    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
-		    scenarios[this.attributes['scenariosIndex']].errorMessage +		    	
-		    "Time to go inside and warm-up. " + '<break time="1s"/>' +
-		    "Thanks for playing!";
-                this.response.speak(speechOutput)
-
-        	// reset the gadgets for the next session
-        	this.attributes['firstGadgetId'] = null;
-        	this.attributes['secondGadgetId'] = null;
-
-                this.emit(':responseReady');
-                console.log(JSON.stringify(this.response));
-
+                this.emit('ThrowNeeded');
 	    } else {
             	this.emit('GoodNoThrow');
 	    }
@@ -312,13 +296,39 @@ const handlers = {
             this.emit(':responseReady');
 	}
     },
+    // this logic gets invoked when the time is up and a throw was required based on the scenario
+    'ThrowNeeded': function() {
+	console.log("Throw needed. Game over.");
+               
+	// build the audio response to end the game
+	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
+	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
+	    scenarios[this.attributes['scenariosIndex']].errorMessage +
+	    "Time to go inside and warm-up. " + '<break time="1s"/>' +
+	    "Thanks for playing!";
+	this.response.speak(speechOutput)
+                
+	// reset the gadgets for the next session
+	this.attributes['firstGadgetId'] = null;
+	this.attributes['secondGadgetId'] = null;
+                
+	this.emit(':responseReady');
+	console.log(JSON.stringify(this.response));
+    },
     // this handles when a scenario exists where nothing should be thrown
     'GoodNoThrow': function() {
 	console.log("No throw required. Continue with another round.");
 
 	// acknowledge that the choice was correct
 	let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage + " ";
-	this.attributes['round'] += 1;
+
+	// increment the scores
+	if (this.attributes['gameType'] === "SOLO") {
+	    this.attributes['round']++;
+	} else {
+	    this.attributes['redScore']++;
+	    this.attributes['blueScore']++;
+	}
 
 	// build the message for the next round including a random saying
 	const scenariosIndex = Math.floor(Math.random() * scenarios.length);
@@ -347,11 +357,15 @@ const handlers = {
 	if (this.attributes['gameOver']) {
 	    console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
+        } else if (this.attributes['redGameOver']) {
+            console.log("Red player attempting to play when they are already out");
+            delete this.handler.response.response.shouldEndSession;
+            this.emit(':responseReady');
         } else if (this.attributes['throwNeeded']) {
 	    console.log("Good Hit made.");
 	    this.emit('GoodHit', "Red");
         } else {
-	    this.emit('SnowballTrouble');
+	    this.emit('SnowballTrouble', "Red");
 	}
     },
     // this is executed when the an object is appropriately hit
@@ -367,6 +381,7 @@ const handlers = {
 	// indicate who scored first
 	speechOutput = speechOutput + "The " + player + " player won this round. " + '<break time="1s"/>';
 
+	// add to the score
 	if (player === "Red") {
 	    this.attributes['redScore']++;
 	} else {
@@ -382,7 +397,7 @@ const handlers = {
         this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
         this.attributes['scenariosIndex'] = scenariosIndex;
 
-        // extend the lease on the buttons and reanimate the first player button
+        // extend the lease on the buttons and reanimate both buttons
         buttonStartParams.timeout = (Number(scenarios[scenariosIndex].timeout) + 2000);
         this.response._addDirective(buttonStartParams);
         this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
@@ -393,7 +408,7 @@ const handlers = {
         console.log(JSON.stringify(this.response));
     },
     // this is the function that gets called when the user hits something with a snowball that they weren't supposed to
-    'SnowballTrouble': function() {
+    'SnowballTrouble': function(player) {
         console.log("Threw a snowball and hit something - game over.");
 
         // create sounds indicating a smash, negative response, then an intro for the end of game.
@@ -402,15 +417,72 @@ const handlers = {
 	    scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
 
 	// this round wasn't successful, so decrement so it doesn't count towards high score
-	this.attributes['round'] -= 1;
+	if (this.attributes['gameMode'] === "SOLO") {
+	    this.attributes['round'] -= 1;
 
-	// check if the game was just getting started - redirect user as they might not understand how to play
-	if (this.attributes['round'] > minScore) {
-	    speechOutput = speechOutput + "You were able to get " + this.attributes['round'] + " correct in a row. " +
-            	"<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_outro_01.mp3'/>";
+	    // check if the game was just getting started - redirect user as they might not understand how to play
+	    if (this.attributes['round'] > minScore) {
+	    	speechOutput = speechOutput + "You were able to get " + this.attributes['round'] + " correct in a row. " +
+            	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_outro_01.mp3'/>";
+	    } else {
+		speechOutput = speechOutput + "You were just getting started, remember, don't press your button every round. ";
+	    }
+
+	   this.emit('HandleGameEnding', speechOutput);
 	} else {
-            console.log("Give message around instructions.");
+	    // dual mode - need to check if both players are out, or just one of them
+	    console.log("Game Over for " + player + " player.");
+	    if (player === "Red") {
+		if(this.attributes['blueGameOver']) {
+	   	    this.emit('HandleGameEnding', speechOutput);
+		} else {
+		    this.emit('HandleKnockout', speechOutput, player);
+		}
+	    } else {
+		// assume player is blue
+		if(this.attributes['redGameOver']) {
+                    this.emit('HandleGameEnding', speechOutput);
+		} else {
+                    this.emit('HandleKnockout', speechOutput, player);
+		}
+	    }
 	}
+    },
+    // this handles when one of the players gets knocked out of the game
+    'HandleKnockout': function(speechOutput, player) {
+	console.log("Setup Remainder of the game");
+
+	speechOutput = speechOutput + "The " + player + " is no longer in the game." + '<break time="1s"/>';
+
+        // build the message for the next round including a random saying
+        const scenariosIndex = Math.floor(Math.random() * scenarios.length);
+        speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
+        let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
+
+        // save attributes for next event
+        this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
+        this.attributes['scenariosIndex'] = scenariosIndex;
+
+        // extend the lease on the buttons and reanimate both buttons
+        buttonStartParams.timeout = (Number(scenarios[scenariosIndex].timeout) + 2000);
+        this.response._addDirective(buttonStartParams);
+
+	// only illuminate the remaining player
+	if (player === "Blue") {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+	    this.attributes['blueGameOver'] = true;
+	} else {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+	    this.attributes['redGameOver'] = true;
+	}
+
+        this.response.speak(speechOutput).listen(repeat);
+        this.emit(':responseReady');
+        console.log(JSON.stringify(this.response));
+    },
+    // this handles processing the end of a game
+    'HandleGameEnding': function() {
+	console.log("Process End of Game");
 
 	// check for high score
 	if (this.attributes['round'] > this.attributes['highScore']) {
@@ -451,16 +523,25 @@ const handlers = {
         this.response.speak(speechOutput).listen(reprompt);
         this.emit(':responseReady');
     },
-    // this is the logic that gets invoked when the blue button is pressed, or the word 'Save' is used
+    // this is the logic that gets invoked when the blue button is pressed in a two player game
     'SecondButtonPushed': function() {
         console.log("Second player button pushed.");
 
         if (this.attributes['gameOver']) {     
-            console.log("Attempt to play a game that is over.");
+            console.log("Attempting to play a game that is over.");
 	    this.emit('GameOver');
+	} else if (this.attributes['blueGameOver']) {
+	    console.log("Blue player attempting to play when they are already out");
+            delete this.handler.response.response.shouldEndSession;
+            this.emit(':responseReady');
         } else {
-	    console.log("Player Two hit the object.");
-            this.emit('GoodHit', "Blue");
+	    if (this.attributes['throwNeeded']) {
+	    	console.log("Player Two hit the object.");
+            	this.emit('GoodHit', "Blue");
+	    } else {
+		console.log("Player Two threw when they shouldn't.");
+		this.emit('SnowballTrouble', "Blue");
+	    }
         }
     },
     // this registers the first button and will be used to throw snowballs
@@ -493,6 +574,8 @@ const handlers = {
 	this.attributes['gameMode'] = "DUAL";
 	this.attributes['redScore']  = 0;
 	this.attributes['blueScore'] = 0;
+	this.attributes['blueGameOver'] = false;
+        this.attributes['redGameOver'] = false;
 
         let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
 	    "Remember, whomever is first at hitting the target wins a point, but if you throw a snowball when you're not supposed to, " +
