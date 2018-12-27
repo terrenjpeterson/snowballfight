@@ -1,0 +1,58 @@
+[
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"You see a blue hat above the wall of the snow fort.",
+        "successMessage":"Nice shot!<break time=\"1s\"/><voice name=\"Justin\">Where did that come from?</voice><break time=\"1s\"/>You knocked his hat off with that throw.",
+        "errorMessage":"Too late. You just got blasted with a snowball.<break time=\"1s\"/><voice name=\"Justin\">Ha Ha!</voice>"
+    },
+    {
+        "throwNeeded":false,
+        "timeout":25000,
+        "description":"You hear your mom calling you.<break time=\"1s\"/><voice name=\"Joanna\">I made some hot chocolate. Get it before it turns cold!</voice>",
+        "errorMessage":"Oh no.<break time=\"1s\"/><voice name=\"Joanna\">Okay, time to go inside. No throwing snowballs at your mother!</voice><break time=\"1s\"/>Next time don't press your button to throw at her.",
+        "successMessage":"Smart move. No need to throw a snowball at your mother, and this hot chocolate has marshmallows!"
+    },
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"You see a pile of snowballs inside the snow fort.",
+        "errorMessage":"Too slow. You just got hit with a snowball.",
+        "successMessage":"Good job!<break time=\"1s\"/><voice name=\"Justin\">Oh no. Now I have to make more.</voice><break time=\"1s\"/>That's less snowballs you need to worry about."
+    },
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"There's a icicle on the edge of your garage.<audio src='soundbank://soundlibrary/magic/amzn_sfx_fairy_sparkle_chimes_01'/> ",
+        "errorMessage":"Too much watching the ice melt. You got hit from the back by a snowball. ",
+        "successMessage":"Good aim. It came down in one shot. "
+    },
+    {
+        "throwNeeded":true,
+        "timeout":25000,
+        "description":"You see a girl running at you with a snowball in her hand.<break time=\"1s\"/><voice name=\"Ivy\">Take that!</voice>",
+        "errorMessage":"Wow that was cold!<break time=\"1s\"/><voice name=\"Ivy\">Got you!</voice>",
+        "successMessage":"That was a close one.<break time=\"1s\"/><voice name=\"Ivy\">You missed and I'm coming back!</voice>"
+    },
+    {
+        "throwNeeded":true,
+        "timeout":28000,
+        "description":"You see your cranky old neighbor shoveling his driveway.<break time=\"1s\"/><voice name=\"Matthew\">Can't wait until this snow melts.</voice>",
+        "errorMessage":"<voice name=\"Matthew\">Hey kid, I see you over there. I'm calling your dad.</voice><break time=\"1s\"/>Time to go inside and lay low for a while.",
+        "successMessage":"Great aim!<break time=\"1s\"/><voice name=\"Matthew\">Oh no, that is so cold. Better head inside and warm up!</voice>"
+    },
+    {
+        "throwNeeded":false,
+        "timeout":25000,
+        "description":"There's an icicle on the front of the house, right next to the picture window.<audio src='soundbank://soundlibrary/magic/amzn_sfx_fairy_sparkle_chimes_01'/>",
+        "errorMessage":"Oh no, you missed and hit the picture window.<break time=\"1s\"/><voice name=\"Joanna\">You almost broke the picture window, now come inside.</voice>",
+        "successMessage":"Good job. Don't throw snowballs when a window is nearby."
+    },
+    {
+        "throwNeeded":false,
+        "timeout":25000,
+        "description":"You see the mailman coming up to your house with a package<break time=\"1s\"/><voice name=\"Joey\">Hey kids, someone got a package</voice>",
+        "errorMessage":"Gosh, why did you throw at the mailman?<break time=\"1s\"/><voice name=\"Joey\">Hey, you just got the mail all wet.</voice><break time=\"1s\"/>Time to head inside.",
+        "successMessage":"Smart thinking.<break time=\"1s\"/><voice name=\"Joey\">Enjoy the snow kids!</voice>"
+    }
+]

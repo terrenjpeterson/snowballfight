@@ -22,50 +22,8 @@ const expertLevel = 20;
 const starLevel = 12;
 const advancedLevel = 5;
 
-const scenarios = [
-    { 
-	"throwNeeded":true,  
-	"timeout":25000, 
-	"description":"You see a blue hat above the wall of the snow fort.",
-	"successMessage":'Nice shot!<break time="1s"/><voice name="Justin">Where did that come from?</voice><break time="1s"/>You knocked his hat off with that throw.',
-	"errorMessage":"Too late. You just got blasted with a snowball.<break time=\"1s\"/><voice name=\"Justin\">Ha Ha!</voice>"
-    },
-    { 
-	"throwNeeded":false, 
-	"timeout":25000, 
-	"description":'You hear your mom calling you.<break time="1s"/><voice name="Joanna">I made some hot chocolate. Get it before it turns cold!</voice>',
-	"errorMessage":"Oh no.<break time=\"1s\"/><voice name=\"Joanna\">Okay, time to go inside. No throwing snowballs at your mother!</voice><break time=\"1s\"/>Next time don't press your button to throw at her.",
-	"successMessage":"Smart move. No need to throw a snowball at your mother, and this hot chocolate has marshmallows!"
-    },
-    {
-        "throwNeeded":true,
-        "timeout":25000,
-        "description":"You see a pile of snowballs inside the snow fort.",
-	"errorMessage":"Too slow. You just got hit with a snowball.",
-        "successMessage":"Good job!<break time=\"1s\"/><voice name=\"Justin\">Oh no. Now I have to make more.</voice><break time=\"1s\"/>That's less snowballs you need to worry about."
-    },
-    {
-        "throwNeeded":true,
-        "timeout":25000,
-        "description":"There's a icicle on the edge of your garage.<audio src='soundbank://soundlibrary/magic/amzn_sfx_fairy_sparkle_chimes_01'/> ",
-	"errorMessage":"Too much watching the ice melt. You got hit from the back by a snowball. ",
-        "successMessage":"Good aim. It came down in one shot. "
-    },
-    {
-        "throwNeeded":true,
-        "timeout":25000,
-        "description":"You see a girl running at you with a snowball in her hand.<break time=\"1s\"/><voice name=\"Ivy\">Take that!</voice>",
-	"errorMessage":"Wow that was cold!<break time=\"1s\"/><voice name=\"Ivy\">Got you!</voice>",
-        "successMessage":"That was a close one.<break time=\"1s\"/><voice name=\"Ivy\">You missed and I'm coming back!</voice>"
-    },
-    {
-	"throwNeeded":true,
-	"timeout":25000,
-	"description":"You see your cranky old neighbor shoveling his driveway.<break time=\"1s\"/><voice name=\"Matthew\">Can't wait until this snow melts.</voice>",
-	"errorMessage":"<voice name=\"Matthew\">Hey kid, I see you over there. I'm calling your dad.</voice><break time=\"1s\"/>Time to go inside and lay low for a while.",
-	"successMessage":"Great aim!<break time=\"1s\"/><voice name=\"Matthew\">Oh no, that is so cold. Better head inside and warm up!</voice>"
-    }
-];
+// scenarios for the game - separate file to make it easier to manage
+const scenarios = require("data/scenarios.json");
 
 // this is the card that requests feedback after the game is played
 const cardTitle = "Game Complete";
@@ -219,6 +177,9 @@ const handlers = {
 	}
     },
     'Goodbye': function () {
+        // Don't end the session, and don't open the microphone.
+        //delete this.handler.response.response.shouldEndSession;
+        //this.emit(':responseReady');
         this.emit('AMAZON.StopIntent');
     },
     'GameEngine.InputHandlerEvent': function () {
@@ -303,15 +264,27 @@ const handlers = {
 	// build the audio response to end the game
 	let speechOutput = "<audio src='https://s3.amazonaws.com/ask-soundlibrary/foley/amzn_sfx_swoosh_fast_1x_01.mp3'/>" +
 	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/impacts/amzn_sfx_punch_01.mp3'/>" +
-	    scenarios[this.attributes['scenariosIndex']].errorMessage +
-	    "Time to go inside and warm-up. " + '<break time="1s"/>' +
-	    "Thanks for playing!";
-	this.response.speak(speechOutput)
+	    scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
                 
+	if (this.attributes['gameMode'] === "SOLO") {
+	    speechOutput = speechOutput + "Thanks for playing!";
+	} else {
+            // update the score
+            if (this.attributes['redScore'] > this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Red won " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+            } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Blue won " + this.attributes['blueScore'] + " to " + this.attributes['redScore'];
+            } else {
+                speechOutput = speechOutput + "The game tied at " + this.attributes['redScore'];
+            }
+            speechOutput = speechOutput + "." + '<break time="1s"/>';
+	}
+
 	// reset the gadgets for the next session
 	this.attributes['firstGadgetId'] = null;
 	this.attributes['secondGadgetId'] = null;
                 
+        this.response.speak(speechOutput)
 	this.emit(':responseReady');
 	console.log(JSON.stringify(this.response));
     },
@@ -323,7 +296,7 @@ const handlers = {
 	let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage + " ";
 
 	// increment the scores
-	if (this.attributes['gameType'] === "SOLO") {
+	if (this.attributes['gameMode'] === "SOLO") {
 	    this.attributes['round']++;
 	} else {
 	    this.attributes['redScore']++;
@@ -337,6 +310,7 @@ const handlers = {
 	speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
 	let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
 	this.response.speak(speechOutput).listen(repeatOutput);
+	this.attributes['latestScenario'] = scenarios[scenariosIndex].description;
 
 	// save attributes for next event
 	this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
@@ -345,7 +319,14 @@ const handlers = {
 	// extend the lease on the buttons based on the length of the audio in the scenario
 	buttonStartParams.timeout = scenarios[scenariosIndex].timeout;
 	this.response._addDirective(buttonStartParams);
-	this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+
+        // animate buttons based on the game scenario
+        if (!this.attributes['redGameOver']) {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+        }
+        if (!this.attributes['blueGameOver'] && this.attributes['gameMode'] === "SOLO") {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+        }
                 
 	this.emit(':responseReady');
 	console.log(JSON.stringify(this.response));
@@ -357,7 +338,7 @@ const handlers = {
 	if (this.attributes['gameOver']) {
 	    console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
-        } else if (this.attributes['redGameOver']) {
+        } else if (this.attributes['redGameOver'] && this.attributes['gameMode'] === "DUAL") {
             console.log("Red player attempting to play when they are already out");
             delete this.handler.response.response.shouldEndSession;
             this.emit(':responseReady');
@@ -378,30 +359,49 @@ const handlers = {
             '<break time="1s"/>' +
             scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
 
-	// indicate who scored first
-	speechOutput = speechOutput + "The " + player + " player won this round. " + '<break time="1s"/>';
+	if (this.attributes['gameMode'] === "DUAL") {
+	    // indicate who scored first
+	    speechOutput = speechOutput + "The " + player + " player won this round. ";
 
-	// add to the score
-	if (player === "Red") {
-	    this.attributes['redScore']++;
-	} else {
-            this.attributes['blueScore']++;
+	    // add to the score based on who won the round
+	    if (player === "Red") {
+	    	this.attributes['redScore']++;
+	    } else {
+            	this.attributes['blueScore']++;
+	    }
+
+	    // update the score
+  	    if (this.attributes['redScore'] > this.attributes['blueScore']) {
+	    	speechOutput = speechOutput + "Red is winning " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+	    } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
+            	speechOutput = speechOutput + "Red is winning " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+	    } else {
+            	speechOutput = speechOutput + "The game is tied at " + this.attributes['redScore'];
+	    }
+	    speechOutput = speechOutput + "." + '<break time="1s"/>';
 	}
 
         // build the message for the next round including a random saying
         const scenariosIndex = Math.floor(Math.random() * scenarios.length);
         speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
         let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
+        this.attributes['latestScenario'] = scenarios[scenariosIndex].description;
 
         // save attributes for next event
         this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
         this.attributes['scenariosIndex'] = scenariosIndex;
 
-        // extend the lease on the buttons and reanimate both buttons
+        // extend the lease on the button(s)
         buttonStartParams.timeout = (Number(scenarios[scenariosIndex].timeout) + 2000);
         this.response._addDirective(buttonStartParams);
-        this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
-        this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+
+	// animate buttons based on the game scenario
+	if (!this.attributes['redGameOver']) {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+	}
+	if (!this.attributes['blueGameOver'] && this.attributes['gameMode'] === "SOLO") {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+	}
 
         this.response.speak(speechOutput).listen(repeat);
         this.emit(':responseReady');
@@ -458,6 +458,7 @@ const handlers = {
         const scenariosIndex = Math.floor(Math.random() * scenarios.length);
         speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
         let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
+        this.attributes['latestScenario'] = scenarios[scenariosIndex].description;
 
         // save attributes for next event
         this.attributes['throwNeeded'] = scenarios[scenariosIndex].throwNeeded;
@@ -481,24 +482,36 @@ const handlers = {
         console.log(JSON.stringify(this.response));
     },
     // this handles processing the end of a game
-    'HandleGameEnding': function() {
+    'HandleGameEnding': function(speechOutput) {
 	console.log("Process End of Game");
 
-	// check for high score
-	if (this.attributes['round'] > this.attributes['highScore']) {
-	    console.log("New High Score");
-	    this.attributes['highScore'] = this.attributes['round'];
-	    if (this.attributes['round'] > minScore) {
-		speechOutput = speechOutput + "Congratulations on a new high score! ";
-		if (this.attributes['round'] > expertLevel) {
-		    speechOutput = speechOutput + "You made it to the expert level animal saving crew! ";
-		} else if (this.attributes['round'] > starLevel) {
-		    speechOutput = speechOutput + "You made it to the star level animal saving team! ";
-		} else if (this.attributes['round'] > advancedLevel) {
-		    speechOutput = speechOutput + "You are an advanced animal rescuer! ";
-		}
-	    }
-	}
+        if (this.attributes['gameMode'] === "SOLO") {
+            // check for high score
+            if (this.attributes['round'] > this.attributes['highScore']) {
+            	console.log("New High Score");
+            	this.attributes['highScore'] = this.attributes['round'];
+            	if (this.attributes['round'] > minScore) {
+            	    speechOutput = speechOutput + "Congratulations on a new high score! ";
+            //      if (this.attributes['round'] > expertLevel) {
+            //          speechOutput = speechOutput + "You made it to the expert level animal saving crew! ";
+            //      } else if (this.attributes['round'] > starLevel) {
+            //          speechOutput = speechOutput + "You made it to the star level animal saving team! ";
+            //      } else if (this.attributes['round'] > advancedLevel) {
+            //          speechOutput = speechOutput + "You are an advanced animal rescuer! ";
+            //      }
+                }
+            }
+        } else {
+            // read off the final score
+            if (this.attributes['redScore'] > this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Red won " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+            } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Bue won " + this.attributes['blueScore'] + " to " + this.attributes['redScore'];
+            } else {
+                speechOutput = speechOutput + "The game tied at " + this.attributes['redScore'];
+            }
+            speechOutput = speechOutput + "." + '<break time="1s"/>';
+        }
 
 	speechOutput = speechOutput + "Please say 'Start Over' to try again, or say 'Stop' if you are all done.";
 	const reprompt = "Ready to try again? Just say 'Start Over' to begin a new game.";
@@ -636,21 +649,23 @@ const handlers = {
     // this is the function that gets invoked when help is requested
     'AMAZON.HelpIntent': function () {
         let speechOutput = "The object of the game is to knock down as many things as possible with snowballs. " +
-            "Just listen carefully to the sounds that are being played. For example, " + 
-            "is the sound of a cat. When you hear this sound, press the blue button or say save. " + '<break time="1s"/>' +
-            " press the red button to smash it, or just say the word 'smash'. " + '<break time="1s"/>' +
-            "See how many correct responses you can get in a row. " + '<break time="1s"/>';
+            "Just listen carefully to the scenario that are being played. " +
+	    "Remember, you don't have unlimited time so if you're not fast enough you may get hit by a snowball. " +
+	    '<break time="1s"/>' + "There is also an option for a two player game. " +
+	    "Just press two buttons and there will be a red player and a blue player. " + '<break time="1s"/>' +
+            "Outscore your opponent to win the game. " + '<break time="1s"/>';
         let reprompt = "";
 
-        if (this.attributes['latestSound']) {
-            speechOutput = speechOutput + "Here is the latest sound. " + this.attributes['latestSound'];
-            reprompt = "Here is the latest sound. Go ahead and either smash or save. " + this.attributes['latestSound'];
+        if (this.attributes['latestScenario']) {
+            speechOutput = speechOutput + "Here is the latest scenario. " + this.attributes['latestScenario'];
+            reprompt = "Here is the latest scenario. Go ahead and either smash or save. " + this.attributes['latestScenario'];
         } else {
             speechOutput = speechOutput + "You are currently setting up to begin a game. ";
             reprompt = "Please an Echo button if you have them, else say no to begin the game. ";
         }
 
         // extend the lease on the buttons so they don't time out
+        buttonStartParams.timeout = 60000;;
         this.response._addDirective(buttonStartParams);
 
         this.response.speak(speechOutput).listen(reprompt);
@@ -661,26 +676,45 @@ const handlers = {
         console.log("Start Over Requested");
 
         // reset the score
-        this.attributes['round'] = 1;
-	this.attributes['gameOver'] = false;
+        this.attributes['originatingRequestId'] = this.event.request.requestId;
+        this.attributes['gameOver'] = false;
+        this.attributes['scenariosIndex'] = 0;
+
+	if (this.attributes['gameMode'] === "SOLO") {
+            this.attributes['round'] = 1;
+	} else {
+            this.attributes['redScore']  = 0;
+            this.attributes['blueScore'] = 0;
+            this.attributes['blueGameOver'] = false;
+            this.attributes['redGameOver'] = false;
+	}
 
         let speechOutput = "New game. Now let's get ready to play. " + '<break time="1s"/>' +
             "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_intro_01.mp3'/>" +
             '<break time="1s"/>';
-        let repeat = "Here was the sound again. ";
         
-        // extend the lease on the buttons for another 60 seconds
+        // create the initial audio to stage the game
+        speechOutput = speechOutput + "You walk outside, and it's a beautiful winter day! " +
+            "<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
+            "You see one of your friends working on their snow fort. " +
+            "Looks like an easy target as they haven't seen you yet!";
+        let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
+            "Press the button if you want to throw a snowball at them.";
+
+        // set the parameter indicating that a snowball should be thrown
+        this.attributes['throwNeeded'] = true;
+
+        // extend the lease on the buttons for 30 seconds - this is now game mode
+        buttonStartParams.timeout = 30000;
         this.response._addDirective(buttonStartParams);
 
-	if (this.attributes['firstGadgetId']) {
-            sound = sound + "Remember, if you hear an insect, press the red button to smash it. " +
-            	"Press the blue button if you hear an animal sound and save it. " + '<break time="10s"/>';
-	} else {
-            sound = sound + "Remember, if you hear an insect, say 'smash' to get it. " +
-                "When you hear an animal sound, say 'save' to rescue it. ";
+	// reanimate buttons depending on game mode
+        this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+	if (this.attributes['gameMode'] === "DUAL") {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
 	}
 
-        this.response.speak(speechOutput).listen(repeat);
+        this.response.speak(speechOutput).listen(repeatOutput);
 	this.emit(':responseReady');        
     },
     'AMAZON.CancelIntent': function () {
@@ -691,13 +725,27 @@ const handlers = {
     'AMAZON.StopIntent': function () {
 	console.log("Stopped Game");
 
-        let speechOutput = "Thanks for playing Snowball Fight! ";
+        let speechOutput = "";
 
         // check for high score - this will only get invoked if user quits on a 'winning streak'
         if (this.attributes['round'] > this.attributes['highScore']) {
             console.log("New High Score");
             this.attributes['highScore'] = this.attributes['round'];
 	    speechOutput = speechOutput + "Great job on the new high score of " + this.attributes['round'] + ".";
+        }
+
+        if (this.attributes['gameMode'] === "SOLO") {
+            speechOutput = speechOutput + "Thanks for playing!";
+        } else {
+            // update the score
+            if (this.attributes['redScore'] > this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Red won " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+            } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
+                speechOutput = speechOutput + "Blue won " + this.attributes['blueScore'] + " to " + this.attributes['redScore'];
+            } else {
+                speechOutput = speechOutput + "The game tied at " + this.attributes['redScore'];
+            }
+            speechOutput = speechOutput + "." + '<break time="1s"/>';
         }
 
 	// in case gadgets were used, reset them in the session
