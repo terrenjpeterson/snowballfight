@@ -95,9 +95,12 @@ const handlers = {
         // initialize game parameters
         this.attributes['originatingRequestId'] = this.event.request.requestId;
         this.attributes['round'] = 1;
+	this.attributes['highScore'] = 1;
  	this.attributes['gameOver'] = false;
 	this.attributes['scenariosIndex'] = 0;
 	this.attributes['gameMode'] = "TBD";
+	this.attributes['redScore']  = 0;
+	this.attributes['blueScore'] = 0;
 
         // Build the 'button down' animation for when the button is pressed.
         this.response._addDirective(buildButtonDownAnimationDirective([]));
@@ -736,9 +739,13 @@ const handlers = {
 
         if (this.attributes['gameMode'] === "SOLO") {
             speechOutput = speechOutput + "Thanks for playing!";
+	} else if (this.attributes['gameMode'] === "TBD") {
+            speechOutput = speechOutput + "Thanks for trying!";	
         } else {
-            // update the score
-            if (this.attributes['redScore'] > this.attributes['blueScore']) {
+            // assume the game is in DUAL mode - provide a final score update
+	    if (this.attributes['redScore'] === 0 && this.attributes['blueScore'] === 0) {
+                speechOutput = speechOutput + "Thanks for trying!";
+            } else if (this.attributes['redScore'] > this.attributes['blueScore']) {
                 speechOutput = speechOutput + "Red won " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
             } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
                 speechOutput = speechOutput + "Blue won " + this.attributes['blueScore'] + " to " + this.attributes['redScore'];
