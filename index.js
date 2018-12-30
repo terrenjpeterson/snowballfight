@@ -42,7 +42,6 @@ var buttonSkip = 3;
 // main handler
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
-    console.log("initialize session");
     alexa.appId = appId;
 
     // log event data for every request
@@ -53,7 +52,6 @@ exports.handler = function(event, context, callback) {
 
     // register handlers
     alexa.registerHandlers(handlers);
-    console.log("ready to execute");
     alexa.execute();
 };
 
@@ -181,9 +179,9 @@ const handlers = {
     },
     'Goodbye': function () {
         // Don't end the session, and don't open the microphone.
-        //delete this.handler.response.response.shouldEndSession;
-        //this.emit(':responseReady');
-        this.emit('AMAZON.StopIntent');
+        delete this.handler.response.response.shouldEndSession;
+        this.emit(':responseReady');
+        //this.emit('AMAZON.StopIntent');
     },
     'GameEngine.InputHandlerEvent': function () {
         console.log('event generated at ' + this.event.request.timestamp.slice(11, 19));
@@ -277,6 +275,8 @@ const handlers = {
                 speechOutput = speechOutput + "Red won " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
             } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
                 speechOutput = speechOutput + "Blue won " + this.attributes['blueScore'] + " to " + this.attributes['redScore'];
+	    } else if (this.attributes['redScore'] === 0 && this.attributes['blueScore'] === 0) {
+		speechOutput = speechOutput + "Neither player scored a point. Remember, you need to be quick with your buttons";
             } else {
                 speechOutput = speechOutput + "The game tied at " + this.attributes['redScore'];
             }
@@ -377,7 +377,7 @@ const handlers = {
   	    if (this.attributes['redScore'] > this.attributes['blueScore']) {
 	    	speechOutput = speechOutput + "Red is winning " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
 	    } else if (this.attributes['redScore'] < this.attributes['blueScore']) {
-            	speechOutput = speechOutput + "Red is winning " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
+            	speechOutput = speechOutput + "Blue is winning " + this.attributes['redScore'] + " to " + this.attributes['blueScore'];
 	    } else {
             	speechOutput = speechOutput + "The game is tied at " + this.attributes['redScore'];
 	    }
@@ -584,7 +584,7 @@ const handlers = {
     },
     // this gets invoked after the second button gets registered.  It signals that the game can now begin.
     'ButtonsRegistered': function() {
-        console.log("Second button registered - ready to begin two playter game.");
+        console.log("Second button registered - ready to begin two player game.");
 
 	// set the default attributes to begin the game
 	this.attributes['gameMode'] = "DUAL";
@@ -762,15 +762,18 @@ const handlers = {
 	// create response to the user
         this.response.speak(speechOutput);
         this.emit(':responseReady');
+        console.log(JSON.stringify(this.response));
     },
     'AMAZON.FallbackIntent': function () {
         console.log("Fallback Intent hit.");
         let speechOutput = "Sorry, I didn't understand that request. ";
         let reprompt = "";        
 
-        if (this.attributes['round'] > 1) {
-            speechOutput = speechOutput + "Here is the latest sound. " + this.attributes['latestSound'];
-            reprompt = "Here is the latest sound. Go ahead and either smash or save. " + this.attributes['latestSound'];
+	if (this.attributes['latestScenario']) {
+            speechOutput = speechOutput + "Here is the latest sound. " + this.attributes['latestScenario'] +
+                scenarios[this.attributes['scenariosIndex']].description;
+            reprompt = "Here is the latest sound. " + this.attributes['latestScenario'] +
+		scenarios[this.attributes['scenariosIndex']].description;
         } else {
             speechOutput = speechOutput + "You are currently setting up buttons to begin a game. ";
             reprompt = "Please press two Echo buttons if you want to play the Snowball Fight game.";
@@ -778,6 +781,7 @@ const handlers = {
 
         this.response.speak(speechOutput).listen(reprompt);
         this.emit(':responseReady');
+        console.log(JSON.stringify(this.response));
     },
     'SessionEndedRequest': function () {
         console.log('session ended');
