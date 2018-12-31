@@ -58,8 +58,14 @@ exports.handler = function(event, context, callback) {
 // these are the handlers associated with different intents
 const handlers = {
     'LaunchRequest': function () {
+	console.log("Launching new session.");
 	let speechOutput = "";
 	this.attributes['buttonSkip'] = 0;
+
+        // check for referrer tag
+        if (this.event.request.metadata) {
+            console.log("Referrer: " + this.event.request.metadata.referrer);
+        }
 
 	// these are needed to construct the directives that may be used for an echo show
         const builder = new Alexa.templateBuilders.BodyTemplate1Builder();
@@ -119,6 +125,10 @@ const handlers = {
         if (this.attributes['gameOver']) {
             console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
+	} else if (this.attributes['round'] > 1) {
+	    console.log("Inadvertent Yes uttered");
+            delete this.handler.response.response.shouldEndSession;
+            this.emit(':responseReady');
         } else {
             let speechOutput = "Please press your first button to begin the registration process.";
 	    	speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_waiting_loop_30s_01.mp3'/>";
@@ -363,6 +373,7 @@ const handlers = {
             scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
 
 	if (this.attributes['gameMode'] === "DUAL") {
+	    console.log("Dual player game mode.");
 	    // indicate who scored first
 	    speechOutput = speechOutput + "The " + player + " player won this round. ";
 
@@ -382,7 +393,12 @@ const handlers = {
             	speechOutput = speechOutput + "The game is tied at " + this.attributes['redScore'];
 	    }
 	    speechOutput = speechOutput + "." + '<break time="1s"/>';
-	}
+	} else {
+	    console.log("Single player game mode.");
+            // increment the scores
+            this.attributes['round']++;
+	    speechOutput = speechOutput + "Moving to round " + this.attributes['round'] + "." + '<break time="1s"/>';
+        } 
 
         // build the message for the next round including a random saying
         const scenariosIndex = Math.floor(Math.random() * scenarios.length);
@@ -421,6 +437,7 @@ const handlers = {
 
 	// this round wasn't successful, so decrement so it doesn't count towards high score
 	if (this.attributes['gameMode'] === "SOLO") {
+	    console.log("Solo player mode.");
 	    this.attributes['round'] -= 1;
 
 	    // check if the game was just getting started - redirect user as they might not understand how to play
@@ -489,6 +506,8 @@ const handlers = {
 	console.log("Process End of Game");
 
         if (this.attributes['gameMode'] === "SOLO") {
+	    speechOutput = speechOutput + "You scored " + this.attributes['round'] + " in this game." + '<break time="1s"/>';
+
             // check for high score
             if (this.attributes['round'] > this.attributes['highScore']) {
             	console.log("New High Score");
