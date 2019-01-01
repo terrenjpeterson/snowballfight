@@ -236,7 +236,16 @@ const handlers = {
                 this.emit('FirstButtonRegistered');
             }
         } else if (this.event.request.events[0].name === 'timeout') {
-	    this.emit('HandleTimeout');
+	    // check how much of a gap there is between the last button push and handle accordingly
+	    if (buttonGap > this.attributes['buttonSkip']) {
+	    	this.emit('HandleTimeout');
+	    } else {
+            	// this is to remove when the timeout occurs around the same time as a successful button push
+            	console.log("Skipping false timeout - button was just pushed");
+            	// Don't end the session, and don't open the microphone.
+            	delete this.handler.response.response.shouldEndSession;
+            	this.emit(':responseReady');
+	    }
         } else {
             // this is to remove rapid fire buttons
             console.log("Skipping extra buttons");
@@ -495,8 +504,10 @@ const handlers = {
 	// only illuminate the remaining player
 	if (player === "Blue") {
             this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationRed));
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlack));	
 	    this.attributes['blueGameOver'] = true;
 	} else {
+            this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['firstGadgetId']], breathAnimationBlack));
             this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
 	    this.attributes['redGameOver'] = true;
 	}
@@ -875,6 +886,7 @@ const n2h = function(n) {
 const breathAnimationRed = buildBreathAnimation('552200', 'ff0000', 30, 1200);
 const breathAnimationGreen = buildBreathAnimation('004411', '00ff00', 30, 1200);
 const breathAnimationBlue = buildBreathAnimation('003366', '0000ff', 30, 1200);
+const breathAnimationBlack = buildBreathAnimation('000000', '000000', 30, 1200);
 const animations = [breathAnimationRed, breathAnimationGreen, breathAnimationBlue];
 
 /*
