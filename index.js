@@ -278,7 +278,11 @@ const handlers = {
 	    scenarios[this.attributes['scenariosIndex']].errorMessage + '<break time="1s"/>';
                 
 	if (this.attributes['gameMode'] === "SOLO") {
-	    speechOutput = speechOutput + "Thanks for playing!";
+	    if (this.attributes['round'] > 1) {
+	    	speechOutput = speechOutput + "Thanks for playing!" + '<break time="1s"/>';
+	    } else {
+		speechOutput = speechOutput + "Remember, press your button to throw a snowball." + '<break time="1s"/>';
+	    }
 	} else {
             // update the score
             if (this.attributes['redScore'] > this.attributes['blueScore']) {
@@ -293,11 +297,11 @@ const handlers = {
             speechOutput = speechOutput + "." + '<break time="1s"/>';
 	}
 
-	// reset the gadgets for the next session
-	this.attributes['firstGadgetId'] = null;
-	this.attributes['secondGadgetId'] = null;
-                
-        this.response.speak(speechOutput)
+	// see if the user wants to try again.
+        speechOutput = speechOutput + "Please say 'Start Over' to try again, or say 'Stop' if you are all done.";
+	const repeat = "Please say 'Start Over' to begin again, or say 'Stop' if you are done.";
+
+        this.response.speak(speechOutput).listen(repeat);
 	this.emit(':responseReady');
 	console.log(JSON.stringify(this.response));
     },
@@ -306,7 +310,7 @@ const handlers = {
 	console.log("No throw required. Continue with another round.");
 
 	// acknowledge that the choice was correct
-	let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage + " ";
+	let speechOutput = scenarios[this.attributes['scenariosIndex']].successMessage + '<break time="1s"/>';
 
 	// increment the scores
 	if (this.attributes['gameMode'] === "SOLO") {
@@ -660,7 +664,7 @@ const handlers = {
     },
     // this gets invoked when one button is attempted for use in the game for two different actions
     'DuplicateButtonPushed': function() {
-        const speechOutput = "Sorry, you are already using that as your smash button. Please pick another button to use."; 
+        const speechOutput = "Sorry, someone is already using that button. Please pick another button to use."; 
         const repeat = "Please press a second button, then we can get started with the game.";
 
         console.log("Same button picked a second time");

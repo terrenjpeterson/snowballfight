@@ -54,5 +54,19 @@
         "description":"You see the mailman coming up to your house with a package<break time=\"1s\"/><voice name=\"Joey\">Hey kids, someone got a package</voice>",
         "errorMessage":"Gosh, why did you throw at the mailman?<break time=\"1s\"/><voice name=\"Joey\">Hey, you just got the mail all wet.</voice><break time=\"1s\"/>Time to head inside.",
         "successMessage":"Smart thinking.<break time=\"1s\"/><voice name=\"Joey\">Enjoy the snow kids!</voice>"
+    },
+    {
+	"throwNeeded":true,
+	"timeout":25000,
+	"description":"You hear something behind you.<break time=\"1s\"/><audio src='soundbank://soundlibrary/human/amzn_sfx_clear_throat_ahem_01'/>Oh no, it's the boy with the blue hat and he has a snowball!",
+	"errorMessage":"<voice name=\"Justin\">Great shot knocking my hat off before. Now we're even</voice><break time=\"1s\"/>Time to go inside and warm up.",
+	"successMessage":"<voice name=\"Justin\">Not again, you are fast with those snowballs.</voice><break time=\"1s\"/>Great reflexes. You got him just in time!"
+    },
+    {
+	"throwNeeded":false,
+	"timeout":25000,
+	"description":"You see a family walking their child in a stroller.<break time=\"1s\"/><audio src='soundbank://soundlibrary/human/amzn_sfx_baby_big_cry_01'/>",
+	"errorMessage":"<audio src='soundbank://soundlibrary/human/amzn_sfx_baby_cry_01'/><break time=\"1s\"/>Oh no, you just hit a baby with a snowball. Now go inside as they will be calling your parents.",
+	"successMessage":"Good call. That baby needs some fresh air, not some snow."
     }
 ]
