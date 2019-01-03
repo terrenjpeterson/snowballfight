@@ -7,6 +7,10 @@ const appId = 'amzn1.ask.skill.0f8fdbe7-01a2-41d0-877a-c393e543dc58';
 // these are the parameters used to perform a roll call with the button
 let buttonStartParams = require("data/rollCall.json");
 
+// these are the APL formats for different game states
+let aplBeginGame = require("data/aplBeginGame.json");
+let aplInProgress = require("data/aplInProgress.json");
+
 // These are the backgrounds used to display on the screen including the initial launch
 const startupImage = 'https://s3.amazonaws.com/snowballgame/images/1024x600background.png';
 const skillName = 'Snowball Fight';
@@ -111,7 +115,9 @@ const handlers = {
 
         if (this.event.context.System.device.supportedInterfaces.Display) {
             console.log("this was requested by an Echo Show");
-            this.response.speak(speechOutput).listen(reprompt).renderTemplate(template);
+            //this.response.speak(speechOutput).listen(reprompt).renderTemplate(template);
+	    this.response.speak(speechOutput).listen(reprompt);
+	    this.response._addDirective(buildAPLDirective(aplBeginGame));
         } else {
             console.log("this was requested by a device without a display");
             this.response.speak(speechOutput).listen(reprompt);
@@ -159,6 +165,11 @@ const handlers = {
 	    // begin the round of a single player game
 	    console.log("Begin a solo match.");
 	    this.attributes['gameMode'] = "SOLO";
+
+            // change the structure of the APL to reflect in-progress game
+            if (this.event.context.System.device.supportedInterfaces.Display) {
+            	this.response._addDirective(buildAPLDirective(aplInProgress));
+            }
 
 	    // create the initial audio to stage the game
 	    let speechOutput = "Okay, let's begin a solo match. " + '<break time="1s"/>' +
@@ -620,6 +631,11 @@ const handlers = {
     'ButtonsRegistered': function() {
         console.log("Second button registered - ready to begin two player game.");
 
+	// change the structure of the APL to reflect in-progress game
+        if (this.event.context.System.device.supportedInterfaces.Display) {
+            this.response._addDirective(buildAPLDirective(aplInProgress));
+        }
+
 	// set the default attributes to begin the game
 	this.attributes['gameMode'] = "DUAL";
 	this.attributes['redScore']  = 0;
@@ -964,4 +980,18 @@ const buttonStopInputHandlerDirective = function(inputHandlerOriginatingRequestI
      "type": "GameEngine.StopInputHandler",
      "originatingRequestId": inputHandlerOriginatingRequestId
    };
+};
+
+// Build an APL directive
+const buildAPLDirective = function(aplData) {
+    const currentView = {};
+
+    console.log(currentView);
+    console.log(JSON.stringify(currentView));
+
+    return {
+	"type": "Alexa.Presentation.APL.RenderDocument",
+	"document": aplData,
+	"dataSources": currentView
+    };
 };
