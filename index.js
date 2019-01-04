@@ -199,6 +199,7 @@ const handlers = {
 	}
     },
     'Goodbye': function () {
+	console.log("Goodbye Intent invoked.");
         // Don't end the session, and don't open the microphone.
         delete this.handler.response.response.shouldEndSession;
         this.emit(':responseReady');
@@ -784,7 +785,7 @@ const handlers = {
         if (this.attributes['round'] > this.attributes['highScore']) {
             console.log("New High Score");
             this.attributes['highScore'] = this.attributes['round'];
-	    speechOutput = speechOutput + "Great job on the new high score of " + this.attributes['round'] + ".";
+	    speechOutput = speechOutput + "Great job on the new high score of " + this.attributes['round'] + ". ";
         }
 
         if (this.attributes['gameMode'] === "SOLO") {

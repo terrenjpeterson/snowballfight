@@ -20,7 +20,8 @@
 					"type": "Container",
 					"height": "100vh",
 					"width": "100vw",
-					"items": [{
+					"items": [
+						{
 							"type": "Image",
 							"source": "https://s3.amazonaws.com/snowballgame/images/gameLogo.png",
 							"height": "20vh",
@@ -48,15 +49,7 @@
 					"type": "Container",
 					"height": "100vh",
 					"width": "100vw",
-					"items": [{
-							"type": "Text",
-							"text": "Begin Game",
-							"position": "absolute",
-							"left": "5vh",
-							"top": "70vh",
-							"fontWeight": "900",
-							"fontSize": "6vw"
-						},
+					"items": [
 						{
 							"type": "Image",
 							"source": "https://s3.amazonaws.com/snowballgame/images/gameLogo.png",
@@ -64,15 +57,33 @@
 							"width": "90vw",
 							"position": "absolute",
 							"left": "10vh",
-							"top": "12vh"
+							"top": "5vh"
+						},
+						{
+							"type": "Image",
+							"source": "https://s3.amazonaws.com/snowballgame/images/snow_background.png",
+							"height": "80vh",
+							"width": "120vw",
+							"position": "absolute",
+							"left": "0vh",
+							"top": "30vh"
+						},
+					    	{
+							"type": "Text",
+							"text": "Begin Game",
+							"position": "absolute",
+							"left": "25vh",
+							"top": "35vh",
+							"fontWeight": "900",
+							"fontSize": "6vw"
 						},
 						{
 							"type": "Text",
 							"text": "Please press two Echo Buttons to get started.",
 							"position": "absolute",
-							"left": "15vh",
-							"right": "20vw",
-							"top": "85vh",
+							"left": "25vh",
+							"right": "10vw",
+							"top": "50vh",
 							"fontSize": "3vw"
 						}
 					]
