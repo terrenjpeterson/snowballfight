@@ -148,55 +148,85 @@ const handlers = {
             this.emit(':responseReady');
 	}
     },
-    // this is the intent that executes if the user has indicated that they don't have buttons
+    // this is the intent that executes logic of a no response to a question - path varies depending on context
     'AMAZON.NoIntent': function() {
         console.log("No utterance made.");
+
 	this.attributes['buttons'] = false;
 
 	// first check to make sure that this intent can be properly executed
 	if (this.attributes['gameOver']) {
             console.log("Attempt to play a game that is over.");
+
             this.emit('GameOver');
 	} else if (this.attributes['round'] > 1 && this.attributes['firstGadgetId']) {
+	    // if it is a button driven game that is in progress, ignore the request
 	    console.log("Inadvertent utterance - game in-progress");
+
             delete this.handler.response.response.shouldEndSession;
             this.emit(':responseReady');	
 	} else if (this.attributes['firstGadgetId']) {
-	    // begin the round of a single player game
+	    // begin the round of a single player game - this is in response to a question around number of players
 	    console.log("Begin a solo match.");
-	    this.attributes['gameMode'] = "SOLO";
 
-            // change the structure of the APL to reflect in-progress game
-            if (this.event.context.System.device.supportedInterfaces.Display) {
-            	this.response._addDirective(buildAPLDirective(aplInProgress));
-            }
-
-	    // create the initial audio to stage the game
-	    let speechOutput = "Okay, let's begin a solo match. " + '<break time="1s"/>' +
-		"You walk outside, and it's a beautiful winter day! " +
-		"<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
-		"You see one of your friends working on their snow fort. " +
-		"Looks like an easy target as they haven't seen you yet!";	
-	    let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
-		"Press the button if you want to throw a snowball at them.";
-
-	    // set the parameter indicating that a snowball should be thrown
-	    this.attributes['throwNeeded'] = true;
-
-            // extend the lease on the buttons for 30 seconds - this is now game mode
-            buttonStartParams.timeout = 30000;
-            this.response._addDirective(buttonStartParams);
-
-	    this.response.speak(speechOutput).listen(repeatOutput);
-	    this.emit(':responseReady');
+	    this.emit('StartSoloButtonGame');
 	} else {
-	    // intro to the game
+	    // intro to the game without buttons
 	    console.log("User indicated that they didn't have buttons.");
-            let speechOutput = "Sorry, you need Echo Buttons to play this game.";
 
-            this.response.speak(speechOutput);
-            this.emit(':responseReady');
+            this.emit('IntroNoButtonGame');
 	}
+    },
+    // this begins a single player game with buttons
+    'StartSoloButtonGame': function() {
+	this.attributes['gameMode'] = "SOLO";
+            
+	// change the structure of the APL to reflect in-progress game
+	if (this.event.context.System.device.supportedInterfaces.Display) {
+            this.response._addDirective(buildAPLDirective(aplInProgress));
+	}
+
+	// create the initial audio to stage the game
+	let speechOutput = "Okay, let's begin a solo match. " + '<break time="1s"/>' +
+            "You walk outside, and it's a beautiful winter day! " +
+            "<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
+            "You see one of your friends working on their snow fort. " +
+            "Looks like an easy target as they haven't seen you yet!";
+            
+	let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
+            "Press the button if you want to throw a snowball at them.";
+
+	// set the parameter indicating that a snowball should be thrown
+	this.attributes['throwNeeded'] = true;
+
+	// extend the lease on the buttons for 30 seconds - this is now game mode
+	buttonStartParams.timeout = 30000;
+	this.response._addDirective(buttonStartParams);
+
+	this.response.speak(speechOutput).listen(repeatOutput);
+	this.emit(':responseReady');
+    },
+    // this begins a game without buttons
+    'IntroNoButtonGame': function() {
+	console.log("No buttons available to play the game.");
+
+	let speechOutput = "Okay, get ready to start a single player game using just your voice." +
+	    '<break time="1s"/>' +
+            "You walk outside, and it's a beautiful winter day! " +
+            "<audio src='soundbank://soundlibrary/nature/amzn_sfx_strong_wind_whistling_01'/>" +
+            "You see one of your friends working on their snow fort. " +
+            "Looks like an easy target as they haven't seen you yet!" +
+            '<break time="1s"/>' +
+	    "Say yes if you want to throw a snowball.";
+	let repeatOutput = "Do you want to throw a snowball?";
+
+        // change the structure of the APL to reflect in-progress game
+        if (this.event.context.System.device.supportedInterfaces.Display) {
+            this.response._addDirective(buildAPLDirective(aplInProgress));
+        }
+	
+        this.response.speak(speechOutput).listen(repeatOutput);
+        this.emit(':responseReady')
     },
     'Goodbye': function () {
 	console.log("Goodbye Intent invoked.");
