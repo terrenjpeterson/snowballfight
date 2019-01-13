@@ -131,6 +131,10 @@ const handlers = {
         if (this.attributes['gameOver']) {
             console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
+	} else if (!this.attributes['buttons']) {
+	    // this handles the scenario of no buttons, so the user is saying 'yes' to throwing a snowball
+	    console.log("Attempt to throw a snowball in a non-button game.");
+	    this.emit('Throw');
 	} else if (this.attributes['round'] > 1) {
 	    console.log("Inadvertent Yes uttered");
             delete this.handler.response.response.shouldEndSession;
@@ -148,6 +152,16 @@ const handlers = {
             this.emit(':responseReady');
 	}
     },
+    // this handles the scenario of a voice command requesting to throw a snowball
+    'Throw': function() {
+	console.log("Snowball throw request made.");
+            
+	if (this.attributes['throwNeeded']) {
+            this.emit('GoodHit', "Red");
+	} else {
+            this.emit('SnowballTrouble', "Red");
+        }
+    },
     // this is the intent that executes logic of a no response to a question - path varies depending on context
     'AMAZON.NoIntent': function() {
         console.log("No utterance made.");
@@ -159,6 +173,19 @@ const handlers = {
             console.log("Attempt to play a game that is over.");
 
             this.emit('GameOver');
+        } else if (this.attributes['gameMode'] === "TBD") {
+            // intro to the game without buttons
+            console.log("User indicated that they didn't have buttons.");
+
+            this.emit('IntroNoButtonGame');
+	} else if (!this.attributes['buttons']) {
+	    console.log("Player choosing not to throw a snowball");
+
+            if (this.attributes['throwNeeded']) {
+                this.emit('ThrowNeeded');
+            } else {
+                this.emit('GoodNoThrow');
+            }	
 	} else if (this.attributes['round'] > 1 && this.attributes['firstGadgetId']) {
 	    // if it is a button driven game that is in progress, ignore the request
 	    console.log("Inadvertent utterance - game in-progress");
@@ -193,8 +220,15 @@ const handlers = {
             "You see one of your friends working on their snow fort. " +
             "Looks like an easy target as they haven't seen you yet!";
             
-	let repeatOutput = "You are outside and see one of your friends working on their snow fort. " +
-            "Press the button if you want to throw a snowball at them.";
+	let repeatOutput = "You are outside and see one of your friends working on their snow fort. ";
+
+	// alter the response depending if the user has buttons
+	if (this.attributes['buttons']) {
+            repeatOutput = repeatOutput + "Press the button if you want to throw a snowball at them.";
+	} else {
+	    speechOutput = speechOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+	    repeatOutput = repeatOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+	}
 
 	// set the parameter indicating that a snowball should be thrown
 	this.attributes['throwNeeded'] = true;
@@ -224,6 +258,10 @@ const handlers = {
         if (this.event.context.System.device.supportedInterfaces.Display) {
             this.response._addDirective(buildAPLDirective(aplInProgress));
         }
+
+	// set game parameters for future processing
+	this.attributes['gameMode'] = "SOLO";
+	this.attributes['throwNeeded'] = true;
 	
         this.response.speak(speechOutput).listen(repeatOutput);
         this.emit(':responseReady')
@@ -331,7 +369,7 @@ const handlers = {
 	if (this.attributes['gameMode'] === "SOLO") {
 	    if (this.attributes['round'] > 1) {
 	    	speechOutput = speechOutput + "Thanks for playing!" + '<break time="1s"/>';
-	    } else {
+	    } else if (this.attributes['buttons']) {
 		speechOutput = speechOutput + "Remember, press your button to throw a snowball." + '<break time="1s"/>';
 	    }
 	} else {
@@ -394,6 +432,12 @@ const handlers = {
         }
         if (!this.attributes['blueGameOver'] && this.attributes['gameMode'] === "SOLO") {
             this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
+        }
+
+        // alter the response depending if the user has buttons
+        if (!this.attributes['buttons']) {
+            speechOutput = speechOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+            repeatOutput = repeatOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
         }
                 
 	this.emit(':responseReady');
@@ -458,7 +502,7 @@ const handlers = {
         // build the message for the next round including a random saying
         const scenariosIndex = Math.floor(Math.random() * scenarios.length);
         speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
-        let repeat = scenarios[scenariosIndex].description + '<break time="1s"/>';
+        let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
         this.attributes['latestScenario'] = scenarios[scenariosIndex].description;
 
         // save attributes for next event
@@ -477,7 +521,13 @@ const handlers = {
             this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
 	}
 
-        this.response.speak(speechOutput).listen(repeat);
+        // alter the response depending if the user has buttons
+        if (!this.attributes['buttons']) {
+            speechOutput = speechOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+            repeatOutput = repeatOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+        }
+
+        this.response.speak(speechOutput).listen(repeatOutput);
         this.emit(':responseReady');
         console.log(JSON.stringify(this.response));
     },
@@ -499,7 +549,7 @@ const handlers = {
 	    if (this.attributes['round'] > minScore) {
 	    	speechOutput = speechOutput + "You were able to get " + this.attributes['round'] + " correct in a row. " +
             	    "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_outro_01.mp3'/>";
-	    } else {
+	    } else if (this.attributes['buttons']) {
 		speechOutput = speechOutput + "You were just getting started, remember, don't press your button every round. ";
 	    }
 
