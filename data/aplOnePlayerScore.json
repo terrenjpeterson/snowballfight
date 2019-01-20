@@ -73,7 +73,7 @@
 					},
 					{
 					    "type": "Text",
-					    "text": "${payload.scoreMetadata.title}",
+					    "text": "${payload.scoreMetadata.data.title}",
 					    "position": "absolute",
 					    "left": "15vh",
 					    "right": "20vw",

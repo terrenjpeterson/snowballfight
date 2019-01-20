@@ -414,7 +414,7 @@ const handlers = {
 
         // update the display of the score
         if (this.event.context.System.device.supportedInterfaces.Display) {
-            this.response._addDirective(buildAPLDirective(aplOnePlayerScore));
+            this.response._addDirective(buildAPLDirectiveData(this.attributes['gameMode'], this.attributes['round'], this.attributes['redScore'], this.attributes['blueScore']));
         } 
 
 	// build the message for the next round including a random saying
@@ -504,7 +504,7 @@ const handlers = {
 
             // update the display of the score
             if (this.event.context.System.device.supportedInterfaces.Display) {
-            	this.response._addDirective(buildAPLDirective(aplTwoPlayerScore));
+            	this.response._addDirective(buildAPLDirectiveData(this.attributes['gameMode'], this.attributes['round'], this.attributes['redScore'], this.attributes['blueScore']));
             } 
 	} else {
 	    console.log("Single player game mode.");
@@ -514,7 +514,7 @@ const handlers = {
 
             // update the display of the score
             if (this.event.context.System.device.supportedInterfaces.Display) {
-            	this.response._addDirective(buildAPLDirective(aplOnePlayerScore));
+            	this.response._addDirective(buildAPLDirectiveData(this.attributes['gameMode'], this.attributes['round'], this.attributes['redScore'], this.attributes['blueScore']));
             } 
         } 
 
@@ -1089,20 +1089,43 @@ const buttonStopInputHandlerDirective = function(inputHandlerOriginatingRequestI
    };
 };
 
-// Build an APL directive
+// Build an APL directive that has no dynamic data
 const buildAPLDirective = function(aplData) {
-    let scoreMetadata = {};
-	scoreMetadata.title = "Data Here";
-    //	scoreMetadata.player2 = 7;
-
     let currentView = {};
-	currentView.scoreMetdata = scoreMetadata;
-	   
-    console.log(JSON.stringify(currentView));
 
     return {
 	"type": "Alexa.Presentation.APL.RenderDocument",
 	"document": aplData,
 	"datasources": currentView
+    };
+};
+
+// Build an APL directive when dynamic data is involved including the score
+const buildAPLDirectiveData = function(gameMode, round, redScore, blueScore) {
+    let aplData = {};
+    let scoreDetail = {};
+
+    // depending on the game mode, update the score on the display
+    if (gameMode === "SOLO") {
+	scoreDetail.title = round;
+	aplData = aplOnePlayerScore;
+    } else {
+	aplData = aplTwoPlayerScore;
+	scoreDetail.title = "Red: " + redScore + " Blue: " + blueScore;
+    }
+
+    let scoreMetadata = {};
+        scoreMetadata.type = "object";
+        scoreMetadata.data = scoreDetail;
+
+    let currentView = {};
+        currentView.scoreMetadata = scoreMetadata;
+
+    console.log(JSON.stringify(currentView));
+
+    return {
+        "type": "Alexa.Presentation.APL.RenderDocument",
+        "document": aplData,
+        "datasources": currentView
     };
 };
