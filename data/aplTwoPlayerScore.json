@@ -1,0 +1,83 @@
+{
+	"type": "APL",
+	"version": "1.0",
+	"theme": "dark",
+	"import": [{
+		"name": "alexa-viewport-profiles",
+		"version": "1.0.0"
+	}],
+	"resources": [],
+	"styles": {},
+	"layouts": {},
+	"mainTemplate": {
+		"items": [{
+			"type": "Frame",
+			"height": "100vh",
+			"width": "100vw",
+			"backgroundColor": "#58ACFA",
+			"items": [{
+					"when": "${@viewportProfile == @hubRoundSmall}",
+					"type": "Container",
+					"height": "100vh",
+					"width": "100vw",
+					"items": [{
+							"type": "Image",
+							"source": "https://s3.amazonaws.com/snowballgame/images/gameLogo.png",
+							"height": "20vh",
+							"width": "90vw",
+							"position": "absolute",
+							"left": "5vw",
+							"right": "5vw",
+							"top": "30vh"
+						},
+						{
+							"type": "Text",
+							"text": "Score 0-0",
+							"position": "absolute",
+							"left": "12vw",
+							"right": "12vw",
+							"top": "70vh",
+							"fontWeight": "900",
+							"textAlign": "center",
+							"fontSize": "10vw"
+						}
+					]
+				},
+				{
+					"when": "${@viewportProfile == @hubLandscapeMedium || @viewportProfile == @hubLandscapeLarge || @viewportProfile == @tvLandscapeXLarge}",
+					"type": "Container",
+					"height": "100vh",
+					"width": "100vw",
+					"items": [{
+							"type": "Text",
+							"text": "Score",
+							"position": "absolute",
+							"left": "5vh",
+							"top": "70vh",
+							"fontWeight": "900",
+							"fontSize": "6vw"
+						},
+						{
+							"type": "Image",
+							"source": "https://s3.amazonaws.com/snowballgame/images/gameLogo.png",
+							"height": "25vh",
+							"width": "90vw",
+							"position": "absolute",
+							"left": "10vh",
+							"top": "12vh"
+						},
+						{
+							"type": "Text",
+							"text": "Red - 0, Blue - 0",
+							"position": "absolute",
+							"left": "15vh",
+							"right": "20vw",
+							"top": "85vh",
+							"fontSize": "3vw"
+						}
+					]
+				}
+			]
+		}]
+	}
+}

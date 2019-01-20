@@ -10,6 +10,8 @@ let buttonStartParams = require("data/rollCall.json");
 // these are the APL formats for different game states
 let aplBeginGame = require("data/aplBeginGame.json");
 let aplInProgress = require("data/aplInProgress.json");
+let aplOnePlayerScore = require("data/aplOnePlayerScore.json");
+let aplTwoPlayerScore = require("data/aplTwoPlayerScore.json");
 
 // These are the backgrounds used to display on the screen including the initial launch
 const startupImage = 'https://s3.amazonaws.com/snowballgame/images/1024x600background.png';
@@ -232,6 +234,7 @@ const handlers = {
 
 	// set the parameter indicating that a snowball should be thrown
 	this.attributes['throwNeeded'] = true;
+	this.attributes['buttons'] = true;
 
 	// extend the lease on the buttons for 30 seconds - this is now game mode
 	buttonStartParams.timeout = 30000;
@@ -409,13 +412,17 @@ const handlers = {
 	    this.attributes['blueScore']++;
 	}
 
+        // update the display of the score
+        if (this.event.context.System.device.supportedInterfaces.Display) {
+            this.response._addDirective(buildAPLDirective(aplOnePlayerScore));
+        } 
+
 	// build the message for the next round including a random saying
 	const scenariosIndex = Math.floor(Math.random() * scenarios.length);
 	console.log("Next Scenario:" + scenariosIndex);
 
 	speechOutput = speechOutput + scenarios[scenariosIndex].description + '<break time="1s"/>';
 	let repeatOutput = scenarios[scenariosIndex].description + '<break time="1s"/>';
-	this.response.speak(speechOutput).listen(repeatOutput);
 	this.attributes['latestScenario'] = scenarios[scenariosIndex].description;
 
 	// save attributes for next event
@@ -439,6 +446,8 @@ const handlers = {
             speechOutput = speechOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
             repeatOutput = repeatOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
         }
+
+        this.response.speak(speechOutput).listen(repeatOutput);
                 
 	this.emit(':responseReady');
 	console.log(JSON.stringify(this.response));
@@ -492,11 +501,21 @@ const handlers = {
             	speechOutput = speechOutput + "The game is tied at " + this.attributes['redScore'];
 	    }
 	    speechOutput = speechOutput + "." + '<break time="1s"/>';
+
+            // update the display of the score
+            if (this.event.context.System.device.supportedInterfaces.Display) {
+            	this.response._addDirective(buildAPLDirective(aplTwoPlayerScore));
+            } 
 	} else {
 	    console.log("Single player game mode.");
             // increment the scores
             this.attributes['round']++;
 	    speechOutput = speechOutput + "Moving to round " + this.attributes['round'] + "." + '<break time="1s"/>';
+
+            // update the display of the score
+            if (this.event.context.System.device.supportedInterfaces.Display) {
+            	this.response._addDirective(buildAPLDirective(aplOnePlayerScore));
+            } 
         } 
 
         // build the message for the next round including a random saying
@@ -723,6 +742,7 @@ const handlers = {
 	this.attributes['blueScore'] = 0;
 	this.attributes['blueGameOver'] = false;
         this.attributes['redGameOver'] = false;
+        this.attributes['buttons'] = true;
 
         let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
 	    "Remember, whomever is first at hitting the target wins a point, but if you throw a snowball when you're not supposed to, " +
@@ -847,6 +867,12 @@ const handlers = {
 	if (this.attributes['gameMode'] === "DUAL") {
             this.response._addDirective(buildButtonIdleAnimationDirective([this.attributes['secondGadgetId']], breathAnimationBlue));
 	}
+
+        // alter the response depending if the user has buttons
+        if (!this.attributes['buttons']) {
+            speechOutput = speechOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+            repeatOutput = repeatOutput + '<break time="1s"/>' + "Say yes if you want to throw a snowball.";
+        }
 
         this.response.speak(speechOutput).listen(repeatOutput);
 	this.emit(':responseReady');        
@@ -1065,14 +1091,18 @@ const buttonStopInputHandlerDirective = function(inputHandlerOriginatingRequestI
 
 // Build an APL directive
 const buildAPLDirective = function(aplData) {
-    const currentView = {};
+    let scoreMetadata = {};
+	scoreMetadata.title = "Data Here";
+    //	scoreMetadata.player2 = 7;
 
-    console.log(currentView);
+    let currentView = {};
+	currentView.scoreMetdata = scoreMetadata;
+	   
     console.log(JSON.stringify(currentView));
 
     return {
 	"type": "Alexa.Presentation.APL.RenderDocument",
 	"document": aplData,
-	"dataSources": currentView
+	"datasources": currentView
     };
 };
