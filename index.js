@@ -107,6 +107,7 @@ const handlers = {
         this.attributes['round'] = 1;
 	this.attributes['highScore'] = 1;
  	this.attributes['gameOver'] = false;
+	this.attributes['setupMode'] = true;
 	this.attributes['scenariosIndex'] = 0;
 	this.attributes['gameMode'] = "TBD";
 	this.attributes['redScore']  = 0;
@@ -133,19 +134,32 @@ const handlers = {
         if (this.attributes['gameOver']) {
             console.log("Attempt to play a game that is over.");
             this.emit('GameOver');
+        } else if (this.attributes['setupMode']) {
+            let speechOutput = "Please press your first button to begin the registration process.";
+                speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_waiting_loop_30s_01.mp3'/>";
+
+            const reprompt = "If you have buttons, please press the first one to begin the registration process, else say no.";
+
+            // extend the lease on the buttons so they don't time out
+            this.response._addDirective(buttonStartParams);
+
+            this.response.speak(speechOutput).listen(reprompt);
+            this.emit(':responseReady');
 	} else if (!this.attributes['buttons']) {
 	    // this handles the scenario of no buttons, so the user is saying 'yes' to throwing a snowball
 	    console.log("Attempt to throw a snowball in a non-button game.");
 	    this.emit('Throw');
 	} else if (this.attributes['round'] > 1) {
-	    console.log("Inadvertent Yes uttered");
+	    console.log("Inadvertent Yes uttered after the game has begun");
             delete this.handler.response.response.shouldEndSession;
             this.emit(':responseReady');
-        } else {
-            let speechOutput = "Please press your first button to begin the registration process.";
-	    	speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_waiting_loop_30s_01.mp3'/>";
+	} else {
+	    // this is the catch-all - it's not in setup mode, but still in round one. assume part of setup
+	    console.log("Yes uttered during second button setup");
+            let speechOutput = "Please press your second button to finish the registration process.";
+                speechOutput = speechOutput + "<audio src='https://s3.amazonaws.com/ask-soundlibrary/ui/gameshow/amzn_ui_sfx_gameshow_waiting_loop_30s_01.mp3'/>";
 
-            const reprompt = "If you have buttons, please press the first one to begin the registration process, else say no.";
+            const reprompt = "If you have buttons, please press the second one to finish the registration process, else say no.";
 
             // extend the lease on the buttons so they don't time out
             this.response._addDirective(buttonStartParams);
@@ -169,6 +183,7 @@ const handlers = {
         console.log("No utterance made.");
 
 	this.attributes['buttons'] = false;
+	this.attributes['setupMode'] = false;
 
 	// first check to make sure that this intent can be properly executed
 	if (this.attributes['gameOver']) {
@@ -743,6 +758,7 @@ const handlers = {
 	this.attributes['blueGameOver'] = false;
         this.attributes['redGameOver'] = false;
         this.attributes['buttons'] = true;
+	this.attributes['setupMode'] = false;
 
         let speechOutput = "Excellent! You have registered a second button to play a two player game. " +
 	    "Remember, whomever is first at hitting the target wins a point, but if you throw a snowball when you're not supposed to, " +
@@ -833,6 +849,11 @@ const handlers = {
         this.attributes['originatingRequestId'] = this.event.request.requestId;
         this.attributes['gameOver'] = false;
         this.attributes['scenariosIndex'] = 0;
+
+        // change the structure of the APL to reflect in-progress game
+        if (this.event.context.System.device.supportedInterfaces.Display) {
+            this.response._addDirective(buildAPLDirective(aplInProgress));
+        }
 
 	if (this.attributes['gameMode'] === "SOLO") {
             this.attributes['round'] = 1;
@@ -1107,11 +1128,14 @@ const buildAPLDirectiveData = function(gameMode, round, redScore, blueScore) {
 
     // depending on the game mode, update the score on the display
     if (gameMode === "SOLO") {
+	round--;
 	scoreDetail.title = round;
 	aplData = aplOnePlayerScore;
     } else {
 	aplData = aplTwoPlayerScore;
 	scoreDetail.title = "Red: " + redScore + " Blue: " + blueScore;
+	scoreDetail.redScore = "Red: " + redScore;
+	scoreDetail.blueScore = "Blue: " + blueScore;
     }
 
     let scoreMetadata = {};
