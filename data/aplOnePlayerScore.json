@@ -39,12 +39,22 @@
 				    	"text": "Score",
 				    	"position": "absolute",
 				    	"left": "12vw",
-				    	"right": "12vw",
-				    	"top": "70vh",
+					"right": "12vw",
+				    	"bottom": "30vh",
 				    	"fontWeight": "900",
 				    	"textAlign": "center",
 				    	"fontSize": "10vw"
-				    }
+				    },
+                                    {
+                                        "type": "Text",
+                                        "text": "${payload.scoreMetadata.data.title}",
+                                        "position": "absolute",
+                                        "left": "40vw",
+                                        "right": "40vw",
+                                        "bottom": "15vh",
+                                        "textAlign": "center",
+                                        "fontSize": "10vw"
+                                    }
 				]
 			    },
 			    {
