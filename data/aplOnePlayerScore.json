@@ -54,15 +54,6 @@
 				    "width": "100vw",
 				    "items": [
 					{
-					    "type": "Text",
-					    "text": "Score",
-					    "position": "absolute",
-					    "left": "5vh",
-					    "top": "70vh",
-					    "fontWeight": "900",
-					    "fontSize": "6vw"
-					},
-					{
 					    "type": "Image",
 					    "source": "https://s3.amazonaws.com/snowballgame/images/gameLogo.png",
 					    "height": "25vh",
@@ -71,14 +62,40 @@
 					    "left": "10vh",
 					    "top": "12vh"
 					},
+                                        {
+                                            "type": "Image",
+                                            "source": "https://s3.amazonaws.com/snowballgame/images/snow_background.png",
+                                            "height": "80vh",
+                                            "width": "120vw",
+                                            "position": "absolute",
+                                            "left": "0vh",
+                                            "top": "30vh"
+                                        },
+                                        {
+                                            "type": "Image",
+                                            "source": "https://s3.amazonaws.com/snowballgame/images/winter_house.png",
+                                            "height": "50vh",
+                                            "width": "50vw",
+                                            "position": "absolute",
+                                            "right": "0vh",
+                                            "bottom": "10vh"
+                                        },
+                                        {
+                                            "type": "Text",
+                                            "text": "Score",
+                                            "position": "absolute",
+                                            "left": "15vh",
+                                            "top": "40vh",
+                                            "fontWeight": "900",
+                                            "fontSize": "6vw"
+                                        },
 					{
 					    "type": "Text",
 					    "text": "${payload.scoreMetadata.data.title}",
 					    "position": "absolute",
-					    "left": "15vh",
-					    "right": "20vw",
-					    "top": "85vh",
-					    "fontSize": "3vw"
+					    "left": "45vh",
+					    "top": "40vh",
+					    "fontSize": "6vw"
 					}
 				    ]
 				}
