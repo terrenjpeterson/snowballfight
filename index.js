@@ -423,8 +423,13 @@ const handlers = {
 	if (this.attributes['gameMode'] === "SOLO") {
 	    this.attributes['round']++;
 	} else {
-	    this.attributes['redScore']++;
-	    this.attributes['blueScore']++;
+	    // only give point if the player is still in the game
+	    if (!this.attributes['redGameOver']) {
+	    	this.attributes['redScore']++;
+	    }
+	    if (!this.attributes['blueGameOver']) {
+	    	this.attributes['blueScore']++;
+	    }
 	}
 
         // update the display of the score

@@ -81,7 +81,7 @@
                                                         "text": "Let's Go!",
                                                         "position": "absolute",
                                                         "left": "5vh",
-                                                        "top": "70vh",
+                                                        "top": "40vh",
                                                         "fontWeight": "900",
                                                         "fontSize": "6vw"
                                                 },
@@ -91,7 +91,7 @@
 							"position": "absolute",
 							"left": "15vh",
 							"right": "20vw",
-							"top": "85vh",
+							"top": "55vh",
 							"fontSize": "3vw"
 						}
 					]
