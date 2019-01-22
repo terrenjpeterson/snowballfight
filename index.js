@@ -13,15 +13,6 @@ let aplInProgress = require("data/aplInProgress.json");
 let aplOnePlayerScore = require("data/aplOnePlayerScore.json");
 let aplTwoPlayerScore = require("data/aplTwoPlayerScore.json");
 
-// These are the backgrounds used to display on the screen including the initial launch
-const startupImage = 'https://s3.amazonaws.com/snowballgame/images/1024x600background.png';
-const skillName = 'Snowball Fight';
-const startupTitle = 'Watch out for the cold!';
-
-// these utility methods for creating Image and TextField objects for the echo show
-const makePlainText = Alexa.utils.TextUtils.makePlainText;
-const makeImage     = Alexa.utils.ImageUtils.makeImage;
-
 // game parameters
 const minScore = 2;
 const expertLevel = 20;
@@ -72,13 +63,6 @@ const handlers = {
         if (this.event.request.metadata) {
             console.log("Referrer: " + this.event.request.metadata.referrer);
         }
-
-	// these are needed to construct the directives that may be used for an echo show
-        const builder = new Alexa.templateBuilders.BodyTemplate1Builder();
-        const template = builder.setTitle(startupTitle)
-                                .setBackgroundImage(makeImage(startupImage))
-                                .setTextContent(makePlainText(skillName))
-                                .build();
 
 	// vary the intro based on if the game has been played by the user before
 	if (this.attributes['highScore'] > 1) {
